@@ -3,11 +3,15 @@ class UsersController < ApplicationController
     @user = User.new
   end
 
+  def show
+    @user = User.find(params[:id])
+  end
+
   def create
     @user = User.new(users_params)
     if @user.save
       flash[:success] = "Account registered!"
-      redirect_to root_path
+      redirect_to user_path(@user.id)
     else
       render :new
     end
