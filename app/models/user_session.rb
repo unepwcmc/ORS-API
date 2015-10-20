@@ -1,2 +1,3 @@
-class UserSession < Authlogic::Session::Base  
+class UserSession < Authlogic::Session::Base
+  single_access_allowed_request_types [:get]
 end  
