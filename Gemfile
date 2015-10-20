@@ -27,14 +27,9 @@ gem 'sdoc', '~> 0.4.0', group: :doc
 # generate API documentation
 gem 'apipie-rails', '=0.3.3' # https://github.com/Apipie/apipie-rails/issues/353
 
-# Use ActiveModel has_secure_password
-# gem 'bcrypt', '~> 3.1.7'
-
-# Use Unicorn as the app server
-# gem 'unicorn'
-
-# Use Capistrano for deployment
-# gem 'capistrano-rails', group: :development
+group :staging, :production do
+  gem 'dotenv-rails'
+end
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
