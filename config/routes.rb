@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   resources :users
 
   get 'signup', to: 'users#new', as: 'signup'
+  post 'generate_new_token', to: 'users#generate_new_token', as: 'generate_new_token'
 
 
   root to: "home#index"

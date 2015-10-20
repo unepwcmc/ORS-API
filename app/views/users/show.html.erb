@@ -6,6 +6,7 @@
 <p>
   <b>Authentication Token: </b>
   <%= @user.single_access_token %>
+  <%= link_to 'Generate new token', generate_new_token_path, method: :post %>
 </p>
 
 <p>
