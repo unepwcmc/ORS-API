@@ -1,0 +1,14 @@
+language: ruby
+bundler_args: --without development production staging
+rvm:
+  - 2.2.3
+addons:
+  postgresql: 9.4
+# uncomment this line if your project needs to run something other than `rake`:
+before_script:
+  - psql -c 'create database ort_test' -U postgres
+  - RAILS_ENV=test rake db:structure:load
+script:
+  - CODECLIMATE_REPO_TOKEN=ab945f0d169f16b3f3d8f5b3269491029655579ea6358c26499fab7d02d70c95 bundle exec rake
+notifications:
+  slack: wcmc:s9u7NNtJZuCORuIABQ1G4KPb
