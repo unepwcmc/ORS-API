@@ -29,6 +29,8 @@ gem 'apipie-rails', '=0.3.3' # https://github.com/Apipie/apipie-rails/issues/353
 
 group :staging, :production do
   gem 'dotenv-rails'
+  gem 'exception_notification'
+  gem 'slack-notifier', '~> 1.0'
 end
 
 group :development, :test do

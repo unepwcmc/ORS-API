@@ -58,6 +58,9 @@ GEM
     dotenv-rails (1.0.2)
       dotenv (= 1.0.2)
     erubis (2.7.0)
+    exception_notification (4.1.1)
+      actionmailer (>= 3.0.4)
+      activesupport (>= 3.0.4)
     execjs (2.6.0)
     globalid (0.3.6)
       activesupport (>= 4.1.0)
@@ -124,6 +127,7 @@ GEM
       json (~> 1.8)
       simplecov-html (~> 0.10.0)
     simplecov-html (0.10.0)
+    slack-notifier (1.1.0)
     spring (1.4.0)
     sprockets (3.4.0)
       rack (> 1, < 3)
@@ -156,6 +160,7 @@ DEPENDENCIES
   codeclimate-test-reporter
   coffee-rails (~> 4.1.0)
   dotenv-rails
+  exception_notification
   jquery-rails
   oj
   pg
@@ -164,6 +169,7 @@ DEPENDENCIES
   sass-rails (~> 5.0)
   sdoc (~> 0.4.0)
   simplecov
+  slack-notifier (~> 1.0)
   spring
   turbolinks
   uglifier (>= 1.3.0)
