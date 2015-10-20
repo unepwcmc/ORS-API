@@ -26,6 +26,8 @@ gem 'oj'
 gem 'sdoc', '~> 0.4.0', group: :doc
 # generate API documentation
 gem 'apipie-rails', '=0.3.3' # https://github.com/Apipie/apipie-rails/issues/353
+# authentication
+gem 'authlogic', '~> 3.4.2'
 
 group :staging, :production do
   gem 'dotenv-rails'
