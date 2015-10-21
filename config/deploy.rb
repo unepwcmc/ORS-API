@@ -20,7 +20,7 @@ set :deploy_to, "/home/#{fetch(:deploy_user)}/#{fetch(:application)}"
 set :scm, :git
 set :scm_username, "unepwcmc-read"
 
-set :linked_dirs, %w{bin log tmp/pids tmp/cache tmp/sockets vendor/bundle}
+set :linked_dirs, %w{log tmp/pids tmp/cache tmp/sockets vendor/bundle}
 set :linked_files, %w{config/database.yml .env}
 
 set :ssh_options, {
