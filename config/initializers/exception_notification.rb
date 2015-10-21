@@ -35,9 +35,9 @@ if Rails.env.production? || Rails.env.staging?
     # }
 
     config.add_notifier :slack, {
-      :webhook_url => Rails.application.secrets.slack_exception_notification_webhook_url,
-      :channel => "#online-reporting-tool",
-      :username => "TheTormentingBotOfORS-API-#{Rails.env}"
+      webhook_url: Rails.application.secrets.slack_exception_notification_webhook_url,
+      channel: "#online-reporting-tool",
+      username: "TheTormentingBotOfORS-API-#{Rails.env}"
     }
 
   end
