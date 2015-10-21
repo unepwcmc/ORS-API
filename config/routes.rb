@@ -19,14 +19,11 @@ Rails.application.routes.draw do
   get 'signup', to: 'users#new', as: 'signup'
   post 'generate_new_token', to: 'users#generate_new_token', as: 'generate_new_token'
 
-
-  root to: "home#index"
-
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
 
   # You can have the root of your site routed with "root"
-  root :to => 'apipie/apipies#index'
+  root to: "home#index"
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'
