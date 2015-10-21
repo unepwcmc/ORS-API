@@ -10,7 +10,7 @@ class Api::V1::BaseController < ApplicationController
 
   def authenticate
     token = request.headers["X-Authentication-Token"]
-    @user = User.where(single_access_token: token).first if token
+    @user = User.find_by_single_access_token(token) if token
     if @user.nil?
       head status: :unauthorized
       return false

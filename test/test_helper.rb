@@ -18,3 +18,15 @@ class ActiveSupport::TestCase
 
   # Add more helper methods to be used by all tests here...
 end
+
+require "minitest/mock"
+def as_signed_in_api_user
+  @api_user = {
+    id: 1,
+    single_access_token: 'ABC'
+  }
+  User.stub :find_by_single_access_token, @api_user do
+    @request.headers["X-Authentication-Token"] = @api_user[:single_access_token]
+    yield(@api_user)
+  end
+end
