@@ -3,8 +3,8 @@ Rails.application.routes.draw do
   namespace :api, defaults: {format: 'json'} do
     namespace :v1 do
       resources :questionnaires, :only => [:index]
+      get 'test_exception_notifier', controller: :base, action: :test_exception_notifier
     end
-    get 'test_exception_notifier', controller: :base, action: :test_exception_notifier
   end
 
   apipie
