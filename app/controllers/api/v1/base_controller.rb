@@ -1,4 +1,6 @@
 class Api::V1::BaseController < ApplicationController
+  include Roar::Rails::ControllerAdditions
+  respond_to :json, :xml
   before_action :authenticate
 
   # this end-point to be used to test exception notifier

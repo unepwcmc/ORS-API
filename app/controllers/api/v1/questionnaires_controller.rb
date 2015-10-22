@@ -1,4 +1,6 @@
 class Api::V1::QuestionnairesController < Api::V1::BaseController
+  represents :json, Questionnaire
+  represents :xml, Questionnaire
 
   resource_description do
     formats ['JSON', 'XML']
@@ -16,7 +18,11 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
     required: false
 
   def index
-    @questionnaires = []
+    @questionnaires = Questionnaire.
+      includes(:respondents).references(:respondents).
+      where(is_default_language: true).
+      where(status: ['Active', 'Closed']).to_a
+    respond_with @questionnaires
   end
 
 end
