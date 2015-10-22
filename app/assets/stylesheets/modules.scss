@@ -1,0 +1,305 @@
+@import "variables";
+
+/* AUTH BAR, HEADER, FOOTER */
+// Height percentages for these reside in layout.scss
+
+// HEADER
+#header {
+  #main-header, .container, #main-header > .row { min-height: 100%; height: 100%; }
+  img { max-width: 100%; }
+  #title { padding-top: 4%; }
+
+  #organisation-logo {
+    height:100%;
+    max-height: 100%;
+    img {
+      padding: 0.5em;
+      max-height: 95%;
+      max-width: 95%;
+    }
+  }
+
+  #authentication-bar{
+    //background: $grey-3;
+    border-bottom: 1px solid $grey-18;
+    padding: 5px 0;
+    #authentication-buttons-group {
+      text-align: right;
+    }
+  }
+
+  #main-header {
+    border-bottom: 1px solid $grey-18;
+
+    #shape {
+      position: relative;
+      right: 0;
+      min-height: 100%;
+      height: 100%;
+      background: $shape-color;
+      /* transform: skew(-20deg);
+      -webkit-transform: skew(-20deg);
+      -moz-transform: skew(-20deg);
+      -o-transform: skew(-20deg); */
+      text-align: center;
+      #ors-logo { padding-top: 15%; }
+    }
+  }
+}
+
+// FOOTER
+#footer {
+  background: $blue;
+
+  #footer-menu {
+    h1, h2, h3, h4, h5, h6, p, a { color: $white; }
+    padding: 2em;
+
+    .heading { font-weight: bold; }
+    a { text-decoration: none; }
+    li { padding: 0.4em 0;}
+
+    .btn {
+      display: inline-block;
+      -webkit-border-radius: 0.2em;
+      -o-border-radius: 0.2em;
+      -moz-border-radius: 0.2em;
+      border-radius: 0.2em;
+      padding: 10px;
+      border: solid $white 1px;
+      text-decoration: none;
+      &:hover {
+        text-decoration: none;
+        background: $blue-dark;
+      }
+    }
+  }
+
+  #copyright-bar {
+    position: relative;
+    bottom: 0;
+    background: $white;
+    padding: 5px 0;
+    width: 100%;
+    #right { text-align: right; }
+  }
+}
+
+#navigation {
+  #nav-level-1, #nav-level-2 {
+    ul {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      li {
+        float: left;
+        a {
+          text-align: center;
+          display: block;
+          text-decoration: none;
+        }
+      }
+    }
+  }
+
+  #nav-level-1 {
+    ul {
+      li {
+        &.active, & > a:hover, &.active > a { background: $blue; color: $white; }
+        a { width: 250px; padding: 1em; }
+      }
+    }
+  }
+
+  #nav-level-2 {
+    ul {
+      li {
+        &.active, & > a:hover, &.active > a, &:hover {
+          color: $blue;
+          font-weight: bold;
+          //background: $grey-5;
+        }
+        &.active, &:hover {
+          //border-left: 1px solid $grey-18;
+          //border-right: 1px solid $grey-18;
+        }
+        a { padding: 0.5em; margin: 0 0.5em; }
+      }
+    }
+  }
+
+  #nav-level-1 { background: $grey-5; }
+  .row {
+    border-bottom: 1px solid $grey-18;
+  }
+}
+
+/* SUBMISSION VIEW */
+
+.sidebar {
+  border-right: 1px solid $grey-18;
+
+  li {
+    a {
+      display: block;
+      width: 100%;
+      padding: 1em 0;
+      color: $grey-100;
+
+      &:hover {
+        color: $blue; font-weight: bold;
+        background: $grey-5;
+      }
+    }
+  }
+}
+
+.questionnaire, .sidebar {
+}
+
+
+/* TYPOGRAPHY */
+
+.heading { padding-bottom: 10px; }
+.page-header { border-bottom: 1px solid $grey-18; width: 100%; padding: 1em 0; margin-bottom: 1em; }
+
+/* BUTTONS */
+
+// Add to text link to make a button
+.btn {
+  font-size: 0.875em;
+  font-weight: bold;
+  padding: 10px;
+  background: $blue;
+  margin: 1em 0;
+  color: $white;
+  border: none;
+  border-radius: 0.5em;
+  -moz-border-radius: 0.5em;
+  -webkit-border-radius: 0.5em;
+
+  a {color: $white; text-decoration: none; }
+
+  &:hover {
+    background: $blue-dark;
+    cursor: pointer;
+    cursor: hand;
+  }
+}
+
+/* MODULE ELEMENTS */
+
+.panel {
+  background: $grey-5;
+  padding: 20px;
+  border-radius: 0.5em;
+  -o-border-radius: 0.5em;
+  -moz-border-radius: 0.5em;
+  -webkit-border-radius: 0.5em;
+}
+
+/* ICONS */
+
+i {
+  &::before { font-size: 0.875em; }
+  &.background {
+    height: 23px;
+    width: 23px;
+    text-align: center;
+    line-height: 25px;
+    vertical-align: middle;
+    margin: 1px;
+
+    border-radius: 3px;
+    -o-border-radius: 3px;
+    -moz-border-radius: 3px;
+    -webkit-border-radius: 3px;
+  }
+}
+
+/* SUBMISSION VIEW */
+
+.question-title {
+  border-bottom: 1px solid $grey-18;
+  padding: 1em 0;
+  overflow: hidden;
+  margin: 2em 0;
+
+  .number-circle {
+    margin-right: 15px;
+    float: left;
+  }
+}
+
+.number-circle {
+  border-radius: 50%;
+  behavior: url(PIE.htc); /* remove if you don't care about IE8 */
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  background: #fff;
+  border: 2px solid #666;
+  color: #666;
+  text-align: center;
+  position: relative;
+}
+
+.section-options {
+  ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    li {
+      margin: 0 1em;
+      float: right;
+    }
+  }
+}
+
+
+/* UTILITIES */
+
+
+#requests_dialog {
+  text-align: center;
+  img { margin-top: 1em; }
+}
+
+
+/* GRITTER */
+
+.gritter_flash {
+  border-radius: 0.5em;
+  box-shadow: 0.15em 0.15em 0.6em $grey-84;
+}
+
+.gritter-title {
+  text-shadow: none;
+  text-transform: capitalize;
+}
+
+.gritter-item.gritter-css3 {
+  background: none;
+  color: #FFF;
+}
+.flash_notice {
+  background-color: $success-bg;
+  border: 1px solid $success-dark;
+  p, .gritter-title { color: $success-dark; }
+}
+
+.flash_error {
+  background-color: $error-bg;
+  border: 1px solid $error-dark;
+  p, .gritter-title { color: $error-dark; }
+}
+
+.fieldWithErrors {
+  display: inline;
+}
+.warning {
+  font-weight: bold;
+  color: red;
+}
