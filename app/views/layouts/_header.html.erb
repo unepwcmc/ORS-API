@@ -2,14 +2,16 @@
   <div id="authentication-bar">
     <div id="authentication-buttons-group" class="container">
       <p>
+        <%= link_to 'API Documentation', root_path %>
+        |
         <% if current_user %>
-          <%= link_to h((current_user.first_name.present? ? current_user.first_name : current_user.email)), user_path(current_user) %>
+          <%= link_to (current_user.first_name.present? ? current_user.first_name : current_user.email), user_path(current_user) %>
           |
-          <%= link_to "logout", logout_path(:lang => current_user.language) %>
+          <%= link_to "Logout", logout_path(:lang => current_user.language) %>
         <% else %>
-          <%= link_to "sign_up", new_user_path(:lang => (params[:lang]||"en")) %>
+          <%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %>
           |
-          <%= link_to "login", new_user_session_path(:lang => (params[:lang]||"en")) %>
+          <%= link_to "Login", new_user_session_path(:lang => (params[:lang]||"en")) %>
           | <%= select :display, :language, [["English","en"], ["Français","fr"]], {:selected => (params[:lang] || "en")}  %>
           <script type="text/javascript">
             $("#display_language").change(function(){
