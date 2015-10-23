@@ -26,6 +26,9 @@ gem 'multi_json'
 gem 'nokogiri'
 # JSON parser
 gem 'oj'
+# pagination
+gem 'will_paginate'
+gem 'api_pagination_headers'
 # bundle exec rake doc:rails generates the API under doc/api.
 gem 'sdoc', '~> 0.4.0', group: :doc
 # generate API documentation

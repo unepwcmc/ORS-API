@@ -1,4 +1,5 @@
 class Api::V1::QuestionnairesController < Api::V1::BaseController
+  after_action only: [:index] { set_pagination_headers(:questionnaires) }
   represents :json, Questionnaire
   represents :xml, Questionnaire
 
@@ -32,7 +33,10 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
       )
     else
       @questionnaires.where(is_default_language: true)
-    end.to_a
+    end.paginate(
+      page: @page,
+      per_page: @per_page
+    ).order(:activated_on).to_a
     respond_with @questionnaires
   end
 
