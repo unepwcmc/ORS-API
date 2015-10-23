@@ -48,7 +48,6 @@ end
 
 group :development do
   gem 'minitest-rails'
-  gem 'minitest'
   # Access an IRB console on exception pages or by using <%= console %> in views
   gem 'web-console', '~> 2.0'
 
