@@ -29,6 +29,8 @@ gem 'apipie-rails', '=0.3.3' # https://github.com/Apipie/apipie-rails/issues/353
 # authentication
 gem 'authlogic', '~> 3.4.2'
 
+gem 'font-awesome-rails'
+
 group :staging, :production do
   gem 'dotenv-rails'
   gem 'exception_notification'
@@ -60,4 +62,5 @@ end
 group :test do
   gem 'simplecov', require: false
   gem 'codeclimate-test-reporter', require: nil
+  gem 'factory_girl_rails'
 end

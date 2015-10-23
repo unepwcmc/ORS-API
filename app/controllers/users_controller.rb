@@ -9,6 +9,8 @@ class UsersController < ApplicationController
 
   def create
     @user = User.new(users_params)
+    api_role = Role.find_by_name('api')
+    @user.roles << api_role if api_role
     if @user.save
       flash[:success] = "Account registered!"
       redirect_to user_path(@user.id)
