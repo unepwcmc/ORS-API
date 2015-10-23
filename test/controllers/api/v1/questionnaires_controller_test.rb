@@ -2,6 +2,16 @@ require 'test_helper'
 
 describe Api::V1::QuestionnairesController do
   describe "#index" do
+    before do
+      @questionnaire = FactoryGirl.create(:questionnaire)
+      @questionnaire.questionnaire_fields << FactoryGirl.create(
+        :questionnaire_field, language: 'en', title: 'English title', is_default_language: true
+      )
+      @questionnaire.questionnaire_fields << FactoryGirl.create(
+        :questionnaire_field, language: 'pl', title: 'Polski tytuł'
+      )
+    end
+
     it "should respond with 401" do
       get :index
       assert_response 401
@@ -13,7 +23,30 @@ describe Api::V1::QuestionnairesController do
         assert_response :success
       end
     end
-    
+
+    describe 'language filter' do
+      it "should retrieve title in default language" do
+        as_signed_in_api_user do |api_user|
+          get :index, format: :json
+          assert_equal 'English title', assigns(:questionnaires).first.title
+        end
+      end
+
+      it "should retrieve title in requested language" do
+        as_signed_in_api_user do |api_user|
+          get :index, language: 'PL', format: :json
+          assert_equal 'Polski tytuł', assigns(:questionnaires).first.title
+        end
+      end
+
+      it "should retrieve title in default language when requested language unavailable" do
+        as_signed_in_api_user do |api_user|
+          get :index, language: 'ES', format: :json
+          assert_equal 'English title', assigns(:questionnaires).first.title
+        end
+      end
+    end
+
     describe 'JSON' do
       it "should include questionnaires" do
         as_signed_in_api_user do |api_user|

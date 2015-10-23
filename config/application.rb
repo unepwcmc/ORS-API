@@ -27,5 +27,7 @@ module ORSApi
     config.generators do |g|
       g.test_framework :minitest, spec: true, fixture: false
     end
+
+    config.autoload_paths += %W(#{config.root}/test/support/models)
   end
 end
