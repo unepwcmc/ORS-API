@@ -19,9 +19,16 @@ gem 'jquery-rails'
 # Turbolinks makes following links in your web application faster. Read more: https://github.com/rails/turbolinks
 gem 'turbolinks'
 # Build JSON / XML API
-gem 'rabl'
-# Also add either `oj` or `yajl-ruby` as the JSON parser
+gem 'responders'
+gem 'roar-rails'
+gem 'roar'
+gem 'multi_json'
+gem 'nokogiri'
+# JSON parser
 gem 'oj'
+# pagination
+gem 'will_paginate'
+gem 'api_pagination_headers'
 # bundle exec rake doc:rails generates the API under doc/api.
 gem 'sdoc', '~> 0.4.0', group: :doc
 # generate API documentation
@@ -40,6 +47,7 @@ end
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug'
+  gem 'minitest-rails'
 end
 
 group :development do

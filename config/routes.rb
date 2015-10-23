@@ -2,7 +2,7 @@ Rails.application.routes.draw do
 
   namespace :api, defaults: {format: 'json'} do
     namespace :v1 do
-      resources :questionnaires, :only => [:index]
+      resources :questionnaires, only: [:index], defaults: { format: 'json' }
       get 'test_exception_notifier', controller: :base, action: :test_exception_notifier
     end
   end

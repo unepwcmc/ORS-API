@@ -1,4 +1,7 @@
 class Api::V1::QuestionnairesController < Api::V1::BaseController
+  after_action only: [:index] { set_pagination_headers(:questionnaires) }
+  represents :json, Questionnaire
+  represents :xml, Questionnaire
 
   resource_description do
     formats ['JSON', 'XML']
@@ -14,9 +17,27 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
   param :per_page, String,
     desc: 'How many objects returned per page for paginated responses (50 by default)',
     required: false
+  param :lng, String,
+    desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
   def index
-    @questionnaires = []
+    @questionnaires = Questionnaire.
+      includes(:respondents).references(:respondents).
+      where(status: ['Active', 'Closed'])
+    @questionnaires = if @language
+      @questionnaires.
+      where(
+        "languages @> ARRAY[:language] AND language = :language
+        OR NOT languages @> ARRAY[:language] AND is_default_language",
+        language: @language
+      )
+    else
+      @questionnaires.where(is_default_language: true)
+    end.paginate(
+      page: @page,
+      per_page: @per_page
+    ).order(:activated_on).to_a
+    respond_with @questionnaires
   end
 
 end
