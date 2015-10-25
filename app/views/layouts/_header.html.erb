@@ -1,18 +1,22 @@
 <div id="header">
   <div id="authentication-bar">
-    <div id="authentication-buttons-group" class="container">
-      <p>
-        <%= link_to 'API Documentation', root_path %>
-        |
+    <div id="authentication-buttons-group" class="container"> 
+      <strong class='header-logo'>
+        <%= link_to 'ORS-API', root_path %>
+      </strong>
+      <ul class='nav'>
+        <li><%= link_to 'API Documentation', root_path %></li>
         <% if current_user %>
-          <%= link_to (current_user.first_name.present? ? current_user.first_name : current_user.email), user_path(current_user) %>
-          |
-          <%= link_to "Logout", logout_path(:lang => current_user.language) %>
+          <li>
+            <%= link_to (current_user.first_name.present? ? current_user.first_name : current_user.email), user_path(current_user) %>
+          </li> 
+          <li><%= link_to "Logout", logout_path(:lang => current_user.language) %></li>
         <% else %>
-          <%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %>
-          |
-          <%= link_to "Login", new_user_session_path(:lang => (params[:lang]||"en")) %>
-          | <%= select :display, :language, [["English","en"], ["Français","fr"]], {:selected => (params[:lang] || "en")}  %>
+          <li><%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %></li>
+          <li><%= link_to "Login", new_user_session_path(:lang => (params[:lang]||"en")) %></li>
+          <li>
+            <%= select :display, :language, [["English","en"], ["Français","fr"]], {:selected => (params[:lang] || "en")}  %>
+          </li>
           <script type="text/javascript">
             $("#display_language").change(function(){
               var selected_lang = $(this).val();
@@ -22,29 +26,7 @@
             });
           </script>
         <% end %>
-      </p>
-    </div>
-  </div>
-
-  <div id="main-header">
-    <div class="row group">
-      <div class="container">
-        <div class="col col-2" id="organisation-logo">
-          <%= link_to root_path do %>
-            <%= image_tag 'cms_logo.png' %>
-          <% end %>
-        </div>
-
-        <div class="col col-6" id="title">
-          <span>
-          <h3>ORS-API</h3>
-          <h2>Online Reporting System - API</h2></span>
-        </div>
-
-        <div class="col col-4" id="shape">
-          <%= image_tag 'ORS_logo_footer.png', id: 'ors-logo' %>
-        </div>
-      </div>
+      </ul>
     </div>
   </div>
 </div>
