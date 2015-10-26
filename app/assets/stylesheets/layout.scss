@@ -1,0 +1,175 @@
+@import "variables";
+
+// HEADER
+#header {
+  #main-header, .container, #main-header > .row { min-height: 100%; height: 100%; }
+  img { max-width: 100%; }
+  #title { padding-top: 4%; }
+  .header-logo { 
+    float: left;
+    height: 87px;
+    width: 298px;
+    background-image: image-url('ORS_identity.jpg');
+    background-repeat: no-repeat;
+    background-size: 100%;
+    a { display: none; }
+  }
+  .nav {
+    float: right;
+    padding: 70px 50px 0 0;
+    li { 
+      display: inline;
+      padding-right: 40px;
+    }
+  }
+  
+  #organisation-logo {
+    height:100%;
+    max-height: 100%;
+    img {
+      padding: 0.5em;
+      max-height: 95%;
+      max-width: 95%;
+    }
+  }
+
+  #authentication-bar{
+    //background: $grey-3;
+    border-bottom: 1px solid $grey-18;
+    height: 100px;
+
+    #authentication-buttons-group {
+      text-align: right;
+    }
+  }
+
+  #main-header {
+    border-bottom: 1px solid $grey-18;
+
+    #shape {
+      position: relative;
+      right: 0;
+      min-height: 100%;
+      height: 100%;
+      background: $shape-color;
+      /* transform: skew(-20deg);
+      -webkit-transform: skew(-20deg);
+      -moz-transform: skew(-20deg);
+      -o-transform: skew(-20deg); */
+      text-align: center;
+      #ors-logo { padding-top: 15%; }
+    }
+  }
+}
+
+// FOOTER
+#footer {
+  background: $blue;
+  position: relative;
+  clear: both;
+  height: 150px;
+  margin-top: -150px;
+
+  #footer-menu {
+    h1, h2, h3, h4, h5, h6, p, a { color: $white; }
+    padding: 26px;
+
+    .heading { font-weight: bold; }
+    a { text-decoration: none; }
+    li { padding: 0.4em 0;}
+
+    .btn {
+      display: inline-block;
+      -webkit-border-radius: 0.2em;
+      -o-border-radius: 0.2em;
+      -moz-border-radius: 0.2em;
+      border-radius: 0.2em;
+      padding: 10px;
+      border: solid $white 1px;
+      text-decoration: none;
+      &:hover {
+        text-decoration: none;
+        background: $blue-dark;
+      }
+    }
+  }
+
+  #copyright-bar {
+    position: relative;
+    bottom: 0;
+    //background: $white;
+    padding: 5px 0;
+    width: 100%;
+    #right { text-align: right; }
+  }
+}
+
+.app-content {
+  padding: 3em 0;
+  min-height: 100%;
+}
+
+.wrapper {
+  padding-top: 20px;
+  padding-bottom: 200px;
+  overflow: auto;
+}
+
+.content {
+  min-height: 200px;                
+}
+
+.container {
+  width : 100%;
+  position: relative;
+  max-width : 1140px;
+  margin: 0 auto;
+}
+
+.margin { margin: 1% 0 !important;}
+
+.row {
+	clear: both;
+	padding: 0px;
+	margin: 0px 0;
+
+  &.padded {
+    margin: 1em 0;
+  }
+}
+
+.col {
+	display: block;
+	float:left;
+  margin: 0 0 0 1.6%;
+}
+
+.col:first-child { margin-left: 0; }
+
+/*  GROUPING  */
+.group:before,
+.group:after { content:""; display:table; }
+.group:after { clear:both;}
+.group { zoom:1; /* For IE 6/7 */ }
+
+/*  GRID OF TWELVE  */
+.col-12 { width: 100%; }
+.col-11 { width: 91.53%; }
+.col-10 { width: 83.06%; }
+.col-9 { width: 74.6%; }
+.col-8 { width: 66.13%; }
+.col-7 { width: 57.66%; }
+.col-6 { width: 49.2%; }
+.col-5 { width: 40.73%; }
+.col-4 { width: 32.26%; }
+.col-3 { width: 23.8%; }
+.col-2 { width: 15.33%; }
+.col-1 { width: 6.866%; }
+
+/*  GO FULL WIDTH BELOW 480 PIXELS */
+@media only screen and (max-width: 640px) {
+	.col {  margin: 0; }
+  .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
+	  width: 100%;
+	}
+}
