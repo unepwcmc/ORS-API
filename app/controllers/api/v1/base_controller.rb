@@ -5,6 +5,8 @@ class Api::V1::BaseController < ApplicationController
   before_action :set_language
   before_action :set_page
 
+  rescue_from StandardError, with: :track_this_error
+
   # this end-point to be used to test exception notifier
   def test_exception_notifier
     raise 'This is a test. This is only a test.'
@@ -30,6 +32,10 @@ class Api::V1::BaseController < ApplicationController
     @page = params[:page]
     @per_page = params[:per_page] && params[:per_page].to_i
     @per_page = MAX_PER_PAGE if @per_page.blank? || @per_page > MAX_PER_PAGE
+  end
+
+  def track_this_error(exception)
+    render json: { message: "We are sorry but something went wrong while processing your request" }
   end
 
 end
