@@ -35,7 +35,7 @@ class Api::V1::BaseController < ApplicationController
   end
 
   def return_error(exception)
-    render json: { message: "We are sorry but something went wrong while processing your request" }
+    render json: { message: "We are sorry but something went wrong while processing your request" }, status: 500
   end
 
 end
