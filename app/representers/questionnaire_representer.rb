@@ -16,7 +16,7 @@ class QuestionnaireRepresenter < Roar::Decorator
   property :status
   property :created_on
   property :activated_on
-  property :deadline_on
+  property :questionnaire_date
   collection :respondents, extend: RespondentRepresenter, wrap: :respondents
   property :questions_url, getter: lambda { |*| "/questionnaires/#{id}/questions" }
 end
