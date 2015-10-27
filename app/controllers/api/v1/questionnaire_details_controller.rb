@@ -17,7 +17,7 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
   def show
     @questionnaire = Questionnaire.
       includes(:respondents).references(:respondents).
-      where(status: ['Active', 'Closed']).where(id: params[:id]).first
+      where(status: ['Active', 'Closed']).find(params[:id])
     respond_with @questionnaire
   end
 
