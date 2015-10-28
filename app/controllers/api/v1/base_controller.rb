@@ -35,7 +35,15 @@ class Api::V1::BaseController < ApplicationController
   end
 
   def return_error(exception)
-    render json: { message: "We are sorry but something went wrong while processing your request" }, status: 500
+    if Rails.env.production? || Rails.env.staging?
+      ExceptionNotifier.notify_exception(exception,
+        env: request.env, data: { message: "Something went wrong" }
+      )
+    else
+      Rails.logger.error exception.message
+      Rails.logger.error exception.backtrace.join("\n")
+    end
+    render json: { message: "We are sorry, but something went wrong while processing your request" }, status: 500
   end
 
 end
