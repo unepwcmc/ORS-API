@@ -1,0 +1,81 @@
+<ul class='breadcrumb'>
+  <li class='active'><a href='<%= @doc[:doc_url] %><%= @doc[:link_extension] %>'><%= @doc[:name] %> <%= @doc[:resources].values.first && @doc[:resources].values.first[:version] %></a></li>
+  <%= render(:partial => "languages", :locals => {:doc_url => @doc[:doc_url]}) %>
+  <% if @versions && @versions.size > 1 %>
+  <li class='pull-right'>
+    <%= @versions.collect { |v| link_to v, Apipie.full_url(v+@doc[:link_extension]) }.join(' / ').html_safe %>
+  </li>
+  <% end %>
+</ul>
+
+<div><%= raw @doc[:info] %></div>
+
+<h1>Getting Started</h1>
+
+<h3>Signing up for API access</h3>
+<p>You can sign up for an API account <%= link_to 'here', new_user_path(:lang => (params[:lang]||"en")) %>. Once you have signed up, visit <%= link_to 'Sign in', new_user_session_path %> to log in to the API Dashboard and retrieve your generated token.</p>
+
+<h3>Authenticating your requests</h3>
+<p>Your authentication token needs to be passed into every request you make via the HTTP header <code>X-Authentication-Token</code>.</p>
+
+<p>Tokens can be obtained and regenerated from the API Dashboard.</p>
+
+<h3>Tools for testing the API</h3>
+<p>There are a number of free tools available that allow you to test the API before you start integrating it in your systems. For example, <code>curl</code> is a popular command-line tool that could be used for this purpose:</p>
+
+<p>
+<code>curl -i "http://ors-api-host/api/v1/taxon_concepts.xml" -H "X-Authentication-Token:YOUR_TOKEN_HERE"</code>
+</p>
+
+<p>There are also a number of tools that can be installed as an add-on to your browser; they can be found for example by searching for "rest client" in the add-ons repository for your browser.</p>
+
+<h3>Formats</h3>
+<p>All endpoint can return both JSON and XML data. The default is JSON, if you would like to receive XML data, you can add .xml to the endpoint as below:</p>
+
+<p>
+<code>http://ors-api-host/api/v1/questionnaires.xml</code>
+</p>
+
+<h3>Optional parameters</h3>
+<p>Whereas authentication is passed via a HTTP header, other parameters for refining your response data are provided via the query string. These are detailed below and where appropriate in the documentation for each endpoint. Parameters can be combined.</p>
+
+<h1 class='page-header'><%= t('apipie.resources') %></h1>
+
+<% @doc[:resources].sort_by(&:first).each do |key, api| %>
+  <h2>
+    <a href='<%= api[:doc_url] %><%= @doc[:link_extension] %>'>
+      <%= api[:name] %>
+    </a><br>
+    <small><%= api[:short_description] %></small>
+  </h2>
+  <table class='table'>
+    <thead>
+      <tr>
+        <th><%= t('apipie.resource') %></th>
+        <th><%= t('apipie.description') %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% api[:methods].each do |m| %>
+        <% if !m[:show] %>
+          <% next %>
+        <% end %>
+        <% m[:apis].each do |a| %>
+          <tr>
+            <td>
+              <a href='<%= m[:doc_url] %><%= @doc[:link_extension] %>'><%= a[:http_method] %> <%= a[:api_url] %></a>
+              <% if a[:deprecated] %>
+                <code>DEPRECATED</code>
+              <% end %>
+            </td>
+            <td width='60%'><%= a[:short_description] %></td>
+          </tr>
+        <% end %>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+
+<% unless content_for(:apipie_footer) == @doc[:copyright] %>
+  <%= content_for :apipie_footer, raw(@doc[:copyright]) %>
+<% end %>
