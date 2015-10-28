@@ -31,6 +31,7 @@ class Api::V1::BaseController < ApplicationController
       return_api_error("Unpermitted parameters (#{unpermitted_keys.join(', ')})", 422)
       return false
     end
+    return true
   end
 
   def set_language
