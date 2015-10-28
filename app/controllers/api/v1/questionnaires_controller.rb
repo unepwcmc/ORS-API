@@ -1,4 +1,5 @@
 class Api::V1::QuestionnairesController < Api::V1::BaseController
+  before_action :validate_params, only: [:index]
   after_action only: [:index] { set_pagination_headers(:questionnaires) }
   represents :json, Questionnaire
   represents :xml, Questionnaire
@@ -130,4 +131,28 @@ EOS
     respond_with @questionnaires
   end
 
+  private
+
+  def validate_params
+    return unless super()
+    [:page, :per_page].each do |param|
+      unless send(:"validate_#{param}_format")
+        return_api_error("Invalid parameter format: #{param}", 400) and return
+      end
+    end
+  end
+
+  def validate_page_format
+    return true unless params[:page]
+    /\A\d+\Z/.match(params[:page])
+  end
+
+  def validate_per_page_format
+    return true unless params[:per_page]
+    /\A\d+\Z/.match(params[:per_page])
+  end
+
+  def permitted_params
+    [:page, :per_page, :language, :format]
+  end
 end
