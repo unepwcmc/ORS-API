@@ -13,7 +13,7 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
   param :id, String,
     desc: 'Id of the questionnaire',
     required: true 
-  param :lng, String,
+  param :language, String,
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
   def show
@@ -31,6 +31,12 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
       @questionnaire.where(is_default_language: true)
     end.first
     respond_with @questionnaire
+  end
+
+  private
+
+  def permitted_params
+    [:id, :language, :format]
   end
 
 end
