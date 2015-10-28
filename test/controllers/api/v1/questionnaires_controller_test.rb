@@ -45,6 +45,20 @@ describe Api::V1::QuestionnairesController do
           assert_equal 'English title', assigns(:questionnaires).first.title
         end
       end
+
+      it "should return an unprocessable entity response when unpermitted parameters are specified" do
+        as_signed_in_api_user do |api_user|
+          get :index, param: 'something'
+          assert_response 422
+        end
+      end
+
+      it "returns a bad request error when incorrect page value" do
+        as_signed_in_api_user do |api_user|
+          get :index, page: 'something'
+          assert_response 400
+        end
+      end
     end
 
     describe 'JSON' do
