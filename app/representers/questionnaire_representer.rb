@@ -14,7 +14,6 @@ class QuestionnaireRepresenter < Roar::Decorator
   property :language
   property :languages
   property :status
-  property :created_on
   property :activated_on
   property :questionnaire_date
   collection :respondents, extend: RespondentRepresenter, wrap: :respondents
