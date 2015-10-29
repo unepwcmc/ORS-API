@@ -3,27 +3,12 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
   after_action only: [:index] { set_pagination_headers(:questionnaires) }
   represents :json, Questionnaire
   represents :xml, Questionnaire
+  include QuestionnaireExamples
 
-  resource_description do
-    formats ['JSON', 'XML']
-    api_base_url 'api/v1/questionnaires'
-    name 'Questionnaires'
-  end
-
-  api :GET, '/', 'Lists questionnaires'
+  api :GET, '/', 'List of questionnaires'
 
   description <<-EOS
-The following questionnaire fields are returned:
-
-[id] unique identifier of a taxon concept
-[title] title of the questionnaire (translated where available)
-[language] current language (given as ISO code)
-[languages] all available languages (given as array of ISO codes)
-[status] one of 'Active' or 'Closed'
-[created_on] date when questionnaire was created
-[activated_on] date when questionnaire was activated
-[deadline_on] ???
-[respondents] array of respondents and the completion status
+#{field_description}
 
 Where more than #{MAX_PER_PAGE} taxon concepts are returned, the request is paginated, showing #{MAX_PER_PAGE} objects (or less by passing in an optional 'per_page' parameter) at a time. To fetch the remaining objects, you will need to make a new request and pass the optional ‘page’ parameter as below:
 
@@ -49,65 +34,14 @@ If there are additional pages, the link header will contain the URL for the next
 example <<-EOS
 {
   "questionnaires":[
-    {
-      "questionnaire":{
-        "id":16,
-        "title":"Biennial Report",
-        "language":"EN",
-        "languages":["EN"],
-        "status":"Active",
-        "created_on":"2014-11-11",
-        "activated_on":"2015-04-16",
-        "deadline_on":"2015-01-01",
-        "respondents":[
-          {
-            "respondent":{
-              "id":92,
-              "user_id":16,
-              "full_name":"Party: AAA",
-              "status":"Underway"
-            }
-          },{
-            "respondent":{
-              "id":100,
-              "user_id":2,
-              "full_name":"Party: BBB",
-              "status":"Underway"
-            }
-          }
-        ]
-      }
-    }
+  #{json_example}
   ]
 }
 EOS
 
 example <<-EOS
 <questionnaires>
-  <questionnaire>
-    <id>16</id>
-    <title>Biennial Report</title>
-    <language>EN</language>
-    <languages>["EN"]</languages>
-    <status>Active</status>
-    <created_on>2014-11-11</created_on>
-    <activated_on>2015-04-16</activated_on>
-    <deadline_on>2015-01-01</deadline_on>
-    <respondents>
-      <respondent>
-        <id>92</id>
-        <user_id>16</user_id>
-        <full_name>Party: AAA</full_name>
-        <status>Underway</status>
-      </respondent>
-      <respondent>
-        <id>100</id>
-        <user_id>2</user_id>
-        <full_name>Party: BBB</full_name>
-        <status>Submitted</status>
-      </respondent>
-    </respondents>
-  </questionnaire>
+#{xml_example}
 </questionnaires>
 EOS
 
