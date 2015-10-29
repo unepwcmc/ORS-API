@@ -3,8 +3,8 @@
 <head>
   <title><%= t('apipie.api_documentation') %></title>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
   <%= Apipie.include_stylesheets %>
-  <link type='text/css' rel='stylesheet' href='<%= Apipie.full_url("stylesheets/application.css")%>'/>
   <!-- IE6-8 support of HTML5 elements -->
   <!--[if lt IE 9]>
     <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
@@ -12,15 +12,22 @@
 </head>
 <body>
   <div class="container">
-    <div class="row">
-      <div id='container'>
-        <%= yield %>
-        <%= render 'disqus' if Apipie.configuration.use_disqus? %>
+    <div id="header">
+      <div id="authentication-bar">
+        <div id="authentication-buttons-group" class="container">
+          <strong class='header-logo'>
+            <%= link_to 'ORS-API', root_path %>
+          </strong>
+        </div>
       </div>
     </div>
-    <hr>
-    <footer><%= yield :apipie_footer %></footer>
+    <div class="wrapper">
+      <div class="content">
+        <%= yield %>
+      </div>
+    </div>
   </div>
+  <%= render 'layouts/footer' %>
   <%= Apipie.include_javascripts %>
 </body>
 </html>
