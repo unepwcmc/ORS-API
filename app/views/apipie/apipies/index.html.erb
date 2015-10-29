@@ -13,18 +13,18 @@
 <h1>Getting Started</h1>
 
 <h3>Signing up for API access</h3>
-<p>You can sign up for an API account <%= link_to 'here', new_user_path(:lang => (params[:lang]||"en")) %>. Once you have signed up, visit <%= link_to 'Sign in', new_user_session_path %> to log in to the API Dashboard and retrieve your generated token.</p>
+<p>You can <%= link_to 'sign up for an API account here', new_user_path(:lang => (params[:lang]||"en")) %>. Once you have signed up, <%= link_to 'sign in', new_user_session_path %> to access your user profile and retrieve your generated token.</p>
 
 <h3>Authenticating your requests</h3>
 <p>Your authentication token needs to be passed into every request you make via the HTTP header <code>X-Authentication-Token</code>.</p>
 
-<p>Tokens can be obtained and regenerated from the API Dashboard.</p>
+<p>Tokens can be obtained and regenerated from your user profile.</p>
 
 <h3>Tools for testing the API</h3>
 <p>There are a number of free tools available that allow you to test the API before you start integrating it in your systems. For example, <code>curl</code> is a popular command-line tool that could be used for this purpose:</p>
 
 <p>
-<code>curl -i "http://ors-api-host/api/v1/taxon_concepts.xml" -H "X-Authentication-Token:YOUR_TOKEN_HERE"</code>
+<code>curl -i "http://ors-api-host/api/v1/questionnaires.xml" -H "X-Authentication-Token:YOUR_TOKEN_HERE"</code>
 </p>
 
 <p>There are also a number of tools that can be installed as an add-on to your browser; they can be found for example by searching for "rest client" in the add-ons repository for your browser.</p>
