@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= t('apipie.api_documentation') %></title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <%= stylesheet_link_tag    'application', media: 'all', 'data-turbolinks-track' => true %>
+  <%= Apipie.include_stylesheets %>
+  <!-- IE6-8 support of HTML5 elements -->
+  <!--[if lt IE 9]>
+    <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+</head>
+<body>
+  <div class="container app-content">
+    <div id="header">
+      <div id="authentication-bar">
+        <div id="authentication-buttons-group" class="container">
+          <strong class='header-logo'>
+            <%= link_to 'ORS-API', root_path %>
+          </strong>
+        </div>
+      </div>
+      <div class='back-button'>
+        <%= link_to 'Back', root_path %>
+      </div>
+    </div>
+    <div class="wrapper">
+      <div class="content">
+        <%= yield %>
+      </div>
+    </div>
+  </div>
+  <%= render 'layouts/footer' %>
+  <%= Apipie.include_javascripts %>
+</body>
+</html>

@@ -5,6 +5,6 @@ Apipie.configure do |config|
   config.doc_base_url = "/documentation"
   config.default_version = "v1"
   config.api_controllers_matcher = "#{Rails.root}/app/controllers/api/v1/*.rb"
-  config.layout = 'application'
+  #config.layout = 'application'
   config.copyright = "&copy; #{Time.now.year} UNEP-WCMC"
 end

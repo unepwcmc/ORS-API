@@ -12,7 +12,15 @@
     background-image: image-url('ORS_identity.jpg');
     background-repeat: no-repeat;
     background-size: 100%;
-    a { display: none; }
+    text-indent: -9999px;
+    a {
+      text-decoration: none;
+      display: block;
+      height: 100%;
+      line-height: 0;
+      font-size: 0;
+      background-color: transparent;
+    }
   }
   .nav {
     float: right;
@@ -40,6 +48,16 @@
 
     #authentication-buttons-group {
       text-align: right;
+    }
+  }
+
+  .back-button {
+    margin-top: 10px;
+    a {
+      color: $blue;
+      text-decoration: underline;
+      font-family: 'Open Sans', sans-serif;
+      font-size: 16px;
     }
   }
 
