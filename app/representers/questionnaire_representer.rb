@@ -9,12 +9,13 @@ class QuestionnaireRepresenter < Roar::Decorator
   self.representation_wrap = :questionnaire
 
   property :id
+  property :url, getter: lambda { |*| "/api/v1/questionnaires/#{id}" }
   property :title
   property :language
   property :languages
   property :status
-  property :created_on
   property :activated_on
-  property :deadline_on
+  property :questionnaire_date
   collection :respondents, extend: RespondentRepresenter, wrap: :respondents
+  property :questions_url, getter: lambda { |*| "/api/v1/questionnaires/#{id}/questions" }
 end

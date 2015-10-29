@@ -10,6 +10,13 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 
 --
+-- Name: binary_upgrade; Type: SCHEMA; Schema: -; Owner: -
+--
+
+CREATE SCHEMA binary_upgrade;
+
+
+--
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -23,6 +30,20 @@ CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 
 
+--
+-- Name: hstore; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS hstore WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION hstore; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION hstore IS 'data type for storing sets of (key, value) pairs';
+
+
 SET search_path = public, pg_catalog;
 
 --
@@ -34,6 +55,91 @@ CREATE TYPE answer_type AS (
 	answer_type_type text
 );
 
+
+SET search_path = binary_upgrade, pg_catalog;
+
+--
+-- Name: create_empty_extension(text, text, boolean, text, oid[], text[], text[]); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION create_empty_extension(text, text, boolean, text, oid[], text[], text[]) RETURNS void
+    LANGUAGE c
+    AS '$libdir/pg_upgrade_support', 'create_empty_extension';
+
+
+--
+-- Name: set_next_array_pg_type_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_array_pg_type_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_array_pg_type_oid';
+
+
+--
+-- Name: set_next_heap_pg_class_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_heap_pg_class_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_heap_pg_class_oid';
+
+
+--
+-- Name: set_next_index_pg_class_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_index_pg_class_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_index_pg_class_oid';
+
+
+--
+-- Name: set_next_pg_authid_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_pg_authid_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_pg_authid_oid';
+
+
+--
+-- Name: set_next_pg_enum_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_pg_enum_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_pg_enum_oid';
+
+
+--
+-- Name: set_next_pg_type_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_pg_type_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_pg_type_oid';
+
+
+--
+-- Name: set_next_toast_pg_class_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_toast_pg_class_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_toast_pg_class_oid';
+
+
+--
+-- Name: set_next_toast_pg_type_oid(oid); Type: FUNCTION; Schema: binary_upgrade; Owner: -
+--
+
+CREATE FUNCTION set_next_toast_pg_type_oid(oid) RETURNS void
+    LANGUAGE c STRICT
+    AS '$libdir/pg_upgrade_support', 'set_next_toast_pg_type_oid';
+
+
+SET search_path = public, pg_catalog;
 
 --
 -- Name: clone_questionnaire(integer, integer, boolean); Type: FUNCTION; Schema: public; Owner: -
@@ -360,8 +466,8 @@ BEGIN
     other_text,
     looping_identifier,
     from_dependent_section,
-    current_timestamp,
-    current_timestamp,
+    created_at,
+    updated_at,
     answers.id
   FROM answers
   WHERE answers.questionnaire_id = old_questionnaire_id;
@@ -1226,7 +1332,9 @@ CREATE FUNCTION copy_questionnaire(in_questionnaire_id integer, in_user_id integ
       email_subject,
       email,
       email_footer,
-      submit_info_tip
+      submit_info_tip,
+      created_at,
+      updated_at
     )
     SELECT
       copied_questionnaires.id,
@@ -1237,7 +1345,9 @@ CREATE FUNCTION copy_questionnaire(in_questionnaire_id integer, in_user_id integ
       t.email_subject,
       t.email,
       t.email_footer,
-      t.submit_info_tip
+      t.submit_info_tip,
+      copied_questionnaires.created_at,
+      copied_questionnaires.updated_at
     FROM questionnaire_fields t
     JOIN copied_questionnaires
     ON copied_questionnaires.original_id = t.questionnaire_id
@@ -1858,8 +1968,8 @@ CREATE TABLE questionnaire_parts (
     questionnaire_id integer,
     part_id integer,
     part_type character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     parent_id integer,
     lft integer,
     rgt integer,
@@ -1897,9 +2007,9 @@ CREATE TABLE questions (
     number integer,
     section_id integer,
     answer_type_id integer,
-    answer_type_type character varying(255) DEFAULT NULL::character varying,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    answer_type_type character varying(255),
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_mandatory boolean DEFAULT false,
     ordering integer,
     allow_attachments boolean DEFAULT true,
@@ -1931,12 +2041,12 @@ $$;
 
 CREATE TABLE sections (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     last_edited timestamp without time zone,
     section_type integer,
     answer_type_id integer,
-    answer_type_type character varying(255) DEFAULT NULL::character varying,
+    answer_type_type character varying(255),
     loop_source_id integer,
     loop_item_type_id integer,
     depends_on_option_id integer,
@@ -1945,8 +2055,7 @@ CREATE TABLE sections (
     is_hidden boolean DEFAULT false,
     starts_collapsed boolean DEFAULT false,
     display_in_tab boolean DEFAULT false,
-    original_id integer,
-    deleted boolean DEFAULT false
+    original_id integer
 );
 
 
@@ -2007,8 +2116,8 @@ CREATE TABLE alerts (
     id integer NOT NULL,
     deadline_id integer NOT NULL,
     reminder_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2041,8 +2150,8 @@ CREATE TABLE answer_links (
     description text,
     title character varying(255),
     answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2073,8 +2182,8 @@ CREATE TABLE answer_part_matrix_options (
     id integer NOT NULL,
     answer_part_id integer,
     matrix_answer_option_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     answer_text text,
     matrix_answer_drop_option_id integer
 );
@@ -2107,8 +2216,8 @@ CREATE TABLE answer_parts (
     id integer NOT NULL,
     answer_text text,
     answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     field_type_type character varying(255),
     field_type_id integer,
     details_text text,
@@ -2146,8 +2255,8 @@ CREATE TABLE answer_type_fields (
     id integer NOT NULL,
     language character varying(255),
     help_text text,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false,
     answer_type_type character varying(255),
     answer_type_id integer
@@ -2181,8 +2290,8 @@ CREATE TABLE answers (
     id integer NOT NULL,
     user_id integer,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     other_text text,
     question_id integer,
     looping_identifier character varying(255),
@@ -2222,8 +2331,8 @@ CREATE TABLE questionnaire_fields (
     language character varying(255),
     title text,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     introductory_remarks text,
     is_default_language boolean DEFAULT false,
     email_subject character varying(255) DEFAULT '---
@@ -2241,8 +2350,8 @@ CREATE TABLE questionnaire_fields (
 
 CREATE TABLE questionnaires (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     last_edited timestamp without time zone,
     user_id integer,
     last_editor_id integer,
@@ -2254,7 +2363,7 @@ CREATE TABLE questionnaires (
     header_file_size integer,
     header_updated_at timestamp without time zone,
     status integer DEFAULT 0,
-    display_in_tab_max_level character varying(255) DEFAULT 3,
+    display_in_tab_max_level character varying(255) DEFAULT '3'::character varying,
     delegation_enabled boolean DEFAULT true,
     help_pages character varying(255),
     translator_visible boolean DEFAULT false,
@@ -2282,7 +2391,7 @@ CREATE VIEW api_questionnaires_view AS
  SELECT q.id,
     (q.created_at)::date AS created_on,
     (q.activated_at)::date AS activated_on,
-    q.questionnaire_date AS deadline_on,
+    q.questionnaire_date,
         CASE
             WHEN (q.status = 0) THEN 'Inactive'::text
             WHEN (q.status = 1) THEN 'Active'::text
@@ -2307,8 +2416,8 @@ CREATE TABLE authorized_submitters (
     id integer NOT NULL,
     user_id integer,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     status integer DEFAULT 0,
     language character varying(255) DEFAULT 'en'::character varying,
     total_questions integer DEFAULT 0,
@@ -2327,8 +2436,8 @@ CREATE TABLE users (
     persistence_token character varying(255) NOT NULL,
     crypted_password character varying(255) NOT NULL,
     password_salt character varying(255) NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     login_count integer DEFAULT 0 NOT NULL,
     failed_login_count integer DEFAULT 0 NOT NULL,
     last_request_at timestamp without time zone,
@@ -2412,8 +2521,8 @@ CREATE TABLE assignments (
     id integer NOT NULL,
     user_id integer NOT NULL,
     role_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2463,8 +2572,8 @@ CREATE TABLE csv_files (
     id integer NOT NULL,
     name character varying(255),
     location character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     entity_type character varying(255),
     entity_id integer
 );
@@ -2499,8 +2608,8 @@ CREATE TABLE deadlines (
     soft_deadline boolean DEFAULT false,
     due_date timestamp without time zone,
     questionnaire_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2563,8 +2672,8 @@ ALTER SEQUENCE delegate_text_answers_id_seq OWNED BY delegate_text_answers.id;
 CREATE TABLE delegated_loop_item_names (
     id integer NOT NULL,
     loop_item_name_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     delegation_section_id integer
 );
 
@@ -2596,8 +2705,8 @@ CREATE TABLE delegation_sections (
     id integer NOT NULL,
     delegation_id integer,
     section_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -2627,8 +2736,8 @@ ALTER SEQUENCE delegation_sections_id_seq OWNED BY delegation_sections.id;
 
 CREATE TABLE delegations (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     remarks text,
     questionnaire_id integer,
     user_delegate_id integer,
@@ -2668,8 +2777,8 @@ CREATE TABLE documents (
     doc_content_type character varying(255),
     doc_file_size integer,
     doc_updated_at timestamp without time zone,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     description text,
     original_id integer
 );
@@ -2702,8 +2811,8 @@ CREATE TABLE extras (
     id integer NOT NULL,
     name character varying(255),
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     field_type integer,
     original_id integer
 );
@@ -2736,8 +2845,8 @@ CREATE TABLE filtering_fields (
     id integer NOT NULL,
     name character varying(255),
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -2771,8 +2880,8 @@ CREATE TABLE item_extra_fields (
     language character varying(255) DEFAULT 'en'::character varying,
     value character varying(255),
     is_default_language boolean DEFAULT false,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2803,8 +2912,8 @@ CREATE TABLE item_extras (
     id integer NOT NULL,
     loop_item_name_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -2838,8 +2947,8 @@ CREATE TABLE loop_item_name_fields (
     item_name character varying(255),
     is_default_language boolean,
     loop_item_name_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2870,8 +2979,8 @@ CREATE TABLE loop_item_names (
     id integer NOT NULL,
     loop_source_id integer,
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -2906,8 +3015,8 @@ CREATE TABLE loop_item_types (
     lft integer,
     rgt integer,
     loop_source_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     filtering_field_id integer,
     original_id integer
 );
@@ -2941,8 +3050,8 @@ CREATE TABLE loop_items (
     parent_id integer,
     lft integer,
     rgt integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     loop_item_type_id integer,
     sort_index integer DEFAULT 0,
     loop_item_name_id integer,
@@ -2977,8 +3086,8 @@ CREATE TABLE loop_sources (
     id integer NOT NULL,
     name character varying(255),
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3003,72 +3112,6 @@ ALTER SEQUENCE loop_sources_id_seq OWNED BY loop_sources.id;
 
 
 --
--- Name: matrix_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE matrix_answer_option_fields (
-    id integer NOT NULL,
-    matrix_answer_option_id integer,
-    language character varying(255),
-    title text,
-    is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
-);
-
-
---
--- Name: matrix_answer_column_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_column_fields_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_column_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_column_fields_id_seq OWNED BY matrix_answer_option_fields.id;
-
-
---
--- Name: matrix_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE matrix_answer_options (
-    id integer NOT NULL,
-    matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    original_id integer
-);
-
-
---
--- Name: matrix_answer_columns_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_columns_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_columns_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_columns_id_seq OWNED BY matrix_answer_options.id;
-
-
---
 -- Name: matrix_answer_drop_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -3078,8 +3121,8 @@ CREATE TABLE matrix_answer_drop_option_fields (
     language character varying(255),
     is_default_language boolean,
     option_text character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3109,8 +3152,8 @@ ALTER SEQUENCE matrix_answer_drop_option_fields_id_seq OWNED BY matrix_answer_dr
 CREATE TABLE matrix_answer_drop_options (
     id integer NOT NULL,
     matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3135,16 +3178,101 @@ ALTER SEQUENCE matrix_answer_drop_options_id_seq OWNED BY matrix_answer_drop_opt
 
 
 --
+-- Name: matrix_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE matrix_answer_option_fields (
+    id integer NOT NULL,
+    matrix_answer_option_id integer,
+    language character varying(255),
+    title text,
+    is_default_language boolean,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: matrix_answer_option_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_option_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_option_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_option_fields_id_seq OWNED BY matrix_answer_option_fields.id;
+
+
+--
+-- Name: matrix_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE matrix_answer_options (
+    id integer NOT NULL,
+    matrix_answer_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: matrix_answer_options_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_options_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_options_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_options_id_seq OWNED BY matrix_answer_options.id;
+
+
+--
 -- Name: matrix_answer_queries; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
 CREATE TABLE matrix_answer_queries (
     id integer NOT NULL,
     matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
+
+
+--
+-- Name: matrix_answer_queries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_queries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_queries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_queries_id_seq OWNED BY matrix_answer_queries.id;
 
 
 --
@@ -3157,16 +3285,16 @@ CREATE TABLE matrix_answer_query_fields (
     language character varying(255),
     title text,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
 --
--- Name: matrix_answer_row_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: matrix_answer_query_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE matrix_answer_row_fields_id_seq
+CREATE SEQUENCE matrix_answer_query_fields_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3175,29 +3303,10 @@ CREATE SEQUENCE matrix_answer_row_fields_id_seq
 
 
 --
--- Name: matrix_answer_row_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: matrix_answer_query_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE matrix_answer_row_fields_id_seq OWNED BY matrix_answer_query_fields.id;
-
-
---
--- Name: matrix_answer_rows_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_rows_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_rows_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_rows_id_seq OWNED BY matrix_answer_queries.id;
+ALTER SEQUENCE matrix_answer_query_fields_id_seq OWNED BY matrix_answer_query_fields.id;
 
 
 --
@@ -3207,8 +3316,8 @@ ALTER SEQUENCE matrix_answer_rows_id_seq OWNED BY matrix_answer_queries.id;
 CREATE TABLE matrix_answers (
     id integer NOT NULL,
     display_reply integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     matrix_orientation integer,
     original_id integer
 );
@@ -3242,8 +3351,8 @@ CREATE TABLE multi_answer_option_fields (
     language character varying(255),
     option_text text,
     multi_answer_option_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false
 );
 
@@ -3274,8 +3383,8 @@ ALTER SEQUENCE multi_answer_option_fields_id_seq OWNED BY multi_answer_option_fi
 CREATE TABLE multi_answer_options (
     id integer NOT NULL,
     multi_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     details_field boolean DEFAULT false,
     sort_index integer DEFAULT 0 NOT NULL,
     original_id integer
@@ -3308,8 +3417,8 @@ ALTER SEQUENCE multi_answer_options_id_seq OWNED BY multi_answer_options.id;
 CREATE TABLE multi_answers (
     id integer NOT NULL,
     single boolean DEFAULT true,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     other_required boolean DEFAULT false,
     display_type integer,
     original_id integer
@@ -3343,8 +3452,8 @@ CREATE TABLE numeric_answers (
     id integer NOT NULL,
     max_value integer,
     min_value integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3378,8 +3487,8 @@ CREATE TABLE other_fields (
     other_text text,
     multi_answer_id integer,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3412,8 +3521,8 @@ CREATE TABLE pdf_files (
     user_id integer,
     name character varying(255),
     location character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_long boolean DEFAULT true
 );
 
@@ -3450,8 +3559,8 @@ CREATE TABLE persistent_errors (
     errorable_type character varying(255),
     errorable_id integer,
     user_ip character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3482,8 +3591,8 @@ CREATE TABLE question_extras (
     id integer NOT NULL,
     question_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3517,8 +3626,8 @@ CREATE TABLE question_fields (
     short_title character varying(255),
     description text,
     question_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false
 );
 
@@ -3550,8 +3659,8 @@ CREATE TABLE question_loop_types (
     id integer NOT NULL,
     question_id integer,
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3575,6 +3684,25 @@ ALTER SEQUENCE question_loop_types_id_seq OWNED BY question_loop_types.id;
 
 
 --
+-- Name: questionnaire_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE questionnaire_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: questionnaire_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE questionnaire_fields_id_seq OWNED BY questionnaire_fields.id;
+
+
+--
 -- Name: questionnaire_parts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -3591,6 +3719,25 @@ CREATE SEQUENCE questionnaire_parts_id_seq
 --
 
 ALTER SEQUENCE questionnaire_parts_id_seq OWNED BY questionnaire_parts.id;
+
+
+--
+-- Name: questionnaires_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE questionnaires_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: questionnaires_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE questionnaires_id_seq OWNED BY questionnaires.id;
 
 
 --
@@ -3621,8 +3768,8 @@ CREATE TABLE range_answer_option_fields (
     range_answer_option_id integer,
     option_text character varying(255),
     language character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean
 );
 
@@ -3654,8 +3801,8 @@ CREATE TABLE range_answer_options (
     id integer NOT NULL,
     range_answer_id integer,
     sort_index integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3685,8 +3832,8 @@ ALTER SEQUENCE range_answer_options_id_seq OWNED BY range_answer_options.id;
 
 CREATE TABLE range_answers (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3720,8 +3867,8 @@ CREATE TABLE rank_answer_option_fields (
     language character varying(255),
     option_text text,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3751,8 +3898,8 @@ ALTER SEQUENCE rank_answer_option_fields_id_seq OWNED BY rank_answer_option_fiel
 CREATE TABLE rank_answer_options (
     id integer NOT NULL,
     rank_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3783,8 +3930,8 @@ ALTER SEQUENCE rank_answer_options_id_seq OWNED BY rank_answer_options.id;
 CREATE TABLE rank_answers (
     id integer NOT NULL,
     maximum_choices integer DEFAULT (-1),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3816,8 +3963,8 @@ CREATE TABLE reminders (
     id integer NOT NULL,
     title character varying(255),
     body text,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     days integer
 );
 
@@ -3842,52 +3989,14 @@ ALTER SEQUENCE reminders_id_seq OWNED BY reminders.id;
 
 
 --
--- Name: report_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE report_fields_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: report_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE report_fields_id_seq OWNED BY questionnaire_fields.id;
-
-
---
--- Name: reports_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE reports_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE reports_id_seq OWNED BY questionnaires.id;
-
-
---
 -- Name: roles; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
 CREATE TABLE roles (
     id integer NOT NULL,
     name character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3927,8 +4036,8 @@ CREATE TABLE section_extras (
     id integer NOT NULL,
     section_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3961,8 +4070,8 @@ CREATE TABLE section_fields (
     language character varying(255),
     description text,
     section_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false,
     tab_title text
 );
@@ -4017,8 +4126,8 @@ CREATE TABLE source_files (
     source_content_type character varying(255),
     source_file_size integer,
     source_updated_at timestamp without time zone,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     parse_status integer DEFAULT 0
 );
 
@@ -4115,8 +4224,8 @@ CREATE TABLE text_answer_fields (
     text_answer_id integer,
     rows integer,
     width integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4146,8 +4255,8 @@ ALTER SEQUENCE text_answer_fields_id_seq OWNED BY text_answer_fields.id;
 
 CREATE TABLE text_answers (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4179,8 +4288,8 @@ CREATE TABLE user_delegates (
     id integer NOT NULL,
     user_id integer,
     delegate_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     state integer DEFAULT 0
 );
 
@@ -4211,11 +4320,30 @@ ALTER SEQUENCE user_delegates_id_seq OWNED BY user_delegates.id;
 CREATE TABLE user_filtering_fields (
     id integer NOT NULL,
     user_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     filtering_field_id integer,
     field_value character varying(255)
 );
+
+
+--
+-- Name: user_filtering_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE user_filtering_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_filtering_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE user_filtering_fields_id_seq OWNED BY user_filtering_fields.id;
 
 
 --
@@ -4225,8 +4353,8 @@ CREATE TABLE user_filtering_fields (
 CREATE TABLE user_section_submission_states (
     id integer NOT NULL,
     user_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     section_state integer DEFAULT 4,
     section_id integer,
     looping_identifier character varying(255),
@@ -4252,25 +4380,6 @@ CREATE SEQUENCE user_section_submission_states_id_seq
 --
 
 ALTER SEQUENCE user_section_submission_states_id_seq OWNED BY user_section_submission_states.id;
-
-
---
--- Name: user_user_characteristic_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE user_user_characteristic_items_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: user_user_characteristic_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE user_user_characteristic_items_id_seq OWNED BY user_filtering_fields.id;
 
 
 --
@@ -4485,28 +4594,28 @@ ALTER TABLE ONLY matrix_answer_drop_options ALTER COLUMN id SET DEFAULT nextval(
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_option_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_column_fields_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_option_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_option_fields_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_options ALTER COLUMN id SET DEFAULT nextval('matrix_answer_columns_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_options ALTER COLUMN id SET DEFAULT nextval('matrix_answer_options_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_queries ALTER COLUMN id SET DEFAULT nextval('matrix_answer_rows_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_queries ALTER COLUMN id SET DEFAULT nextval('matrix_answer_queries_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_query_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_row_fields_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_query_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_query_fields_id_seq'::regclass);
 
 
 --
@@ -4590,7 +4699,7 @@ ALTER TABLE ONLY question_loop_types ALTER COLUMN id SET DEFAULT nextval('questi
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY questionnaire_fields ALTER COLUMN id SET DEFAULT nextval('report_fields_id_seq'::regclass);
+ALTER TABLE ONLY questionnaire_fields ALTER COLUMN id SET DEFAULT nextval('questionnaire_fields_id_seq'::regclass);
 
 
 --
@@ -4604,7 +4713,7 @@ ALTER TABLE ONLY questionnaire_parts ALTER COLUMN id SET DEFAULT nextval('questi
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY questionnaires ALTER COLUMN id SET DEFAULT nextval('reports_id_seq'::regclass);
+ALTER TABLE ONLY questionnaires ALTER COLUMN id SET DEFAULT nextval('questionnaires_id_seq'::regclass);
 
 
 --
@@ -4737,7 +4846,7 @@ ALTER TABLE ONLY user_delegates ALTER COLUMN id SET DEFAULT nextval('user_delega
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY user_filtering_fields ALTER COLUMN id SET DEFAULT nextval('user_user_characteristic_items_id_seq'::regclass);
+ALTER TABLE ONLY user_filtering_fields ALTER COLUMN id SET DEFAULT nextval('user_filtering_fields_id_seq'::regclass);
 
 
 --
@@ -4955,22 +5064,6 @@ ALTER TABLE ONLY loop_sources
 
 
 --
--- Name: matrix_answer_column_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY matrix_answer_option_fields
-    ADD CONSTRAINT matrix_answer_column_fields_pkey PRIMARY KEY (id);
-
-
---
--- Name: matrix_answer_columns_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY matrix_answer_options
-    ADD CONSTRAINT matrix_answer_columns_pkey PRIMARY KEY (id);
-
-
---
 -- Name: matrix_answer_drop_option_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -4987,19 +5080,35 @@ ALTER TABLE ONLY matrix_answer_drop_options
 
 
 --
--- Name: matrix_answer_row_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+-- Name: matrix_answer_option_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
-ALTER TABLE ONLY matrix_answer_query_fields
-    ADD CONSTRAINT matrix_answer_row_fields_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY matrix_answer_option_fields
+    ADD CONSTRAINT matrix_answer_option_fields_pkey PRIMARY KEY (id);
 
 
 --
--- Name: matrix_answer_rows_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+-- Name: matrix_answer_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY matrix_answer_options
+    ADD CONSTRAINT matrix_answer_options_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: matrix_answer_queries_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY matrix_answer_queries
-    ADD CONSTRAINT matrix_answer_rows_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT matrix_answer_queries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: matrix_answer_query_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY matrix_answer_query_fields
+    ADD CONSTRAINT matrix_answer_query_fields_pkey PRIMARY KEY (id);
 
 
 --
@@ -5091,11 +5200,27 @@ ALTER TABLE ONLY question_loop_types
 
 
 --
+-- Name: questionnaire_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY questionnaire_fields
+    ADD CONSTRAINT questionnaire_fields_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: questionnaire_parts_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY questionnaire_parts
     ADD CONSTRAINT questionnaire_parts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: questionnaires_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY questionnaires
+    ADD CONSTRAINT questionnaires_pkey PRIMARY KEY (id);
 
 
 --
@@ -5160,22 +5285,6 @@ ALTER TABLE ONLY rank_answers
 
 ALTER TABLE ONLY reminders
     ADD CONSTRAINT reminders_pkey PRIMARY KEY (id);
-
-
---
--- Name: report_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY questionnaire_fields
-    ADD CONSTRAINT report_fields_pkey PRIMARY KEY (id);
-
-
---
--- Name: reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY questionnaires
-    ADD CONSTRAINT reports_pkey PRIMARY KEY (id);
 
 
 --
@@ -5259,19 +5368,19 @@ ALTER TABLE ONLY user_delegates
 
 
 --
+-- Name: user_filtering_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY user_filtering_fields
+    ADD CONSTRAINT user_filtering_fields_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_section_submission_states_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY user_section_submission_states
     ADD CONSTRAINT user_section_submission_states_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_user_characteristic_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY user_filtering_fields
-    ADD CONSTRAINT user_user_characteristic_items_pkey PRIMARY KEY (id);
 
 
 --
@@ -5679,442 +5788,6 @@ ALTER TABLE ONLY text_answers
 
 SET search_path TO "$user",public;
 
-INSERT INTO schema_migrations (version) VALUES ('20091216144240');
-
-INSERT INTO schema_migrations (version) VALUES ('20091216144402');
-
-INSERT INTO schema_migrations (version) VALUES ('20091216144524');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222095411');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222103517');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222113533');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222120007');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104112543');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104112938');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104113218');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104113347');
-
-INSERT INTO schema_migrations (version) VALUES ('20100115111120');
-
-INSERT INTO schema_migrations (version) VALUES ('20100115120146');
-
-INSERT INTO schema_migrations (version) VALUES ('20100119115933');
-
-INSERT INTO schema_migrations (version) VALUES ('20100201114144');
-
-INSERT INTO schema_migrations (version) VALUES ('20100201114344');
-
-INSERT INTO schema_migrations (version) VALUES ('20100205160659');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209140108');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209140354');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209160251');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211140602');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145413');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145520');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145830');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215120114');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121456');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121858');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121956');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215133753');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215133945');
-
-INSERT INTO schema_migrations (version) VALUES ('20100216143218');
-
-INSERT INTO schema_migrations (version) VALUES ('20100219154557');
-
-INSERT INTO schema_migrations (version) VALUES ('20100219154943');
-
-INSERT INTO schema_migrations (version) VALUES ('20100223133152');
-
-INSERT INTO schema_migrations (version) VALUES ('20100223133640');
-
-INSERT INTO schema_migrations (version) VALUES ('20100224165830');
-
-INSERT INTO schema_migrations (version) VALUES ('20100224172312');
-
-INSERT INTO schema_migrations (version) VALUES ('20100226141323');
-
-INSERT INTO schema_migrations (version) VALUES ('20100301161929');
-
-INSERT INTO schema_migrations (version) VALUES ('20100302164229');
-
-INSERT INTO schema_migrations (version) VALUES ('20100303162825');
-
-INSERT INTO schema_migrations (version) VALUES ('20100311110216');
-
-INSERT INTO schema_migrations (version) VALUES ('20100312102233');
-
-INSERT INTO schema_migrations (version) VALUES ('20100315164848');
-
-INSERT INTO schema_migrations (version) VALUES ('20100315165036');
-
-INSERT INTO schema_migrations (version) VALUES ('20100318171938');
-
-INSERT INTO schema_migrations (version) VALUES ('20100322144930');
-
-INSERT INTO schema_migrations (version) VALUES ('20100324103935');
-
-INSERT INTO schema_migrations (version) VALUES ('20100325094844');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326135435');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326145544');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326165258');
-
-INSERT INTO schema_migrations (version) VALUES ('20100329104409');
-
-INSERT INTO schema_migrations (version) VALUES ('20100330104949');
-
-INSERT INTO schema_migrations (version) VALUES ('20100331110046');
-
-INSERT INTO schema_migrations (version) VALUES ('20100331125616');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401123407');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401141952');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401144211');
-
-INSERT INTO schema_migrations (version) VALUES ('20100415170751');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416125531');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416154208');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416154452');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416155223');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416155613');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416160303');
-
-INSERT INTO schema_migrations (version) VALUES ('20100419143617');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420132443');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420163657');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420164759');
-
-INSERT INTO schema_migrations (version) VALUES ('20100421140847');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422135900');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422142031');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422142208');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422182458');
-
-INSERT INTO schema_migrations (version) VALUES ('20100423085339');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426092545');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426101145');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426101739');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427093144');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427100139');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427120953');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427140847');
-
-INSERT INTO schema_migrations (version) VALUES ('20100428091102');
-
-INSERT INTO schema_migrations (version) VALUES ('20100428095425');
-
-INSERT INTO schema_migrations (version) VALUES ('20100429151708');
-
-INSERT INTO schema_migrations (version) VALUES ('20100429170035');
-
-INSERT INTO schema_migrations (version) VALUES ('20100505130819');
-
-INSERT INTO schema_migrations (version) VALUES ('20100511164615');
-
-INSERT INTO schema_migrations (version) VALUES ('20100511164913');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512092930');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512095121');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512102616');
-
-INSERT INTO schema_migrations (version) VALUES ('20100513082553');
-
-INSERT INTO schema_migrations (version) VALUES ('20100513083252');
-
-INSERT INTO schema_migrations (version) VALUES ('20100514105446');
-
-INSERT INTO schema_migrations (version) VALUES ('20100517160925');
-
-INSERT INTO schema_migrations (version) VALUES ('20100518161109');
-
-INSERT INTO schema_migrations (version) VALUES ('20100524112251');
-
-INSERT INTO schema_migrations (version) VALUES ('20100524152242');
-
-INSERT INTO schema_migrations (version) VALUES ('20100526132834');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527094259');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527095733');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527173427');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527173812');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527174001');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527174201');
-
-INSERT INTO schema_migrations (version) VALUES ('20100528145112');
-
-INSERT INTO schema_migrations (version) VALUES ('20100601082947');
-
-INSERT INTO schema_migrations (version) VALUES ('20100601083339');
-
-INSERT INTO schema_migrations (version) VALUES ('20100602141114');
-
-INSERT INTO schema_migrations (version) VALUES ('20100604085246');
-
-INSERT INTO schema_migrations (version) VALUES ('20100604112256');
-
-INSERT INTO schema_migrations (version) VALUES ('20100712140227');
-
-INSERT INTO schema_migrations (version) VALUES ('20100712140809');
-
-INSERT INTO schema_migrations (version) VALUES ('20100713105341');
-
-INSERT INTO schema_migrations (version) VALUES ('20100714105006');
-
-INSERT INTO schema_migrations (version) VALUES ('20100719144332');
-
-INSERT INTO schema_migrations (version) VALUES ('20100720085022');
-
-INSERT INTO schema_migrations (version) VALUES ('20100720111356');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726082933');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726161853');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726163827');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727154002');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727155257');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727155513');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728144512');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728150553');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728150715');
-
-INSERT INTO schema_migrations (version) VALUES ('20100803145618');
-
-INSERT INTO schema_migrations (version) VALUES ('20100803161914');
-
-INSERT INTO schema_migrations (version) VALUES ('20100804093414');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806085832');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806093819');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806094510');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806095439');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806101543');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806142439');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902101424');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902105340');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902110423');
-
-INSERT INTO schema_migrations (version) VALUES ('20100909104358');
-
-INSERT INTO schema_migrations (version) VALUES ('20100910075840');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914103345');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914103555');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914160219');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914161105');
-
-INSERT INTO schema_migrations (version) VALUES ('20100915090421');
-
-INSERT INTO schema_migrations (version) VALUES ('20100915093550');
-
-INSERT INTO schema_migrations (version) VALUES ('20100916111650');
-
-INSERT INTO schema_migrations (version) VALUES ('20100917085804');
-
-INSERT INTO schema_migrations (version) VALUES ('20100921113333');
-
-INSERT INTO schema_migrations (version) VALUES ('20100921155104');
-
-INSERT INTO schema_migrations (version) VALUES ('20100922103307');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923093050');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923110454');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140846');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140909');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140951');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923141655');
-
-INSERT INTO schema_migrations (version) VALUES ('20100927140118');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929092844');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929101351');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929101405');
-
-INSERT INTO schema_migrations (version) VALUES ('20100930085508');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004144844');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165635');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165709');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165739');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165813');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005094213');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005094821');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005095212');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005100721');
-
-INSERT INTO schema_migrations (version) VALUES ('20101007111558');
-
-INSERT INTO schema_migrations (version) VALUES ('20101012092449');
-
-INSERT INTO schema_migrations (version) VALUES ('20101012122314');
-
-INSERT INTO schema_migrations (version) VALUES ('20101013160101');
-
-INSERT INTO schema_migrations (version) VALUES ('20101013160216');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154058');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154329');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154431');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014182545');
-
-INSERT INTO schema_migrations (version) VALUES ('20101015142219');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020153730');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020154254');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020160734');
-
-INSERT INTO schema_migrations (version) VALUES ('20101026120732');
-
-INSERT INTO schema_migrations (version) VALUES ('20101026132818');
-
-INSERT INTO schema_migrations (version) VALUES ('20101027163423');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029094255');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029094851');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029100120');
-
-INSERT INTO schema_migrations (version) VALUES ('20101101121253');
-
-INSERT INTO schema_migrations (version) VALUES ('20101109094231');
-
-INSERT INTO schema_migrations (version) VALUES ('20110218154148');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223100045');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223104446');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223162819');
-
-INSERT INTO schema_migrations (version) VALUES ('20110503094739');
-
-INSERT INTO schema_migrations (version) VALUES ('20110520085745');
-
-INSERT INTO schema_migrations (version) VALUES ('20110607090547');
-
-INSERT INTO schema_migrations (version) VALUES ('20110607151214');
-
-INSERT INTO schema_migrations (version) VALUES ('20110621154201');
-
-INSERT INTO schema_migrations (version) VALUES ('20110621154323');
-
-INSERT INTO schema_migrations (version) VALUES ('20110708100848');
-
-INSERT INTO schema_migrations (version) VALUES ('20110721160737');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725095224');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725100948');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725114346');
-
-INSERT INTO schema_migrations (version) VALUES ('20110729145916');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803104501');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803130724');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803133253');
-
-INSERT INTO schema_migrations (version) VALUES ('20110804102726');
-
-INSERT INTO schema_migrations (version) VALUES ('20110823101719');
-
-INSERT INTO schema_migrations (version) VALUES ('20110922143443');
-
-INSERT INTO schema_migrations (version) VALUES ('20110923133020');
-
 INSERT INTO schema_migrations (version) VALUES ('20120116135431');
 
 INSERT INTO schema_migrations (version) VALUES ('20120116135432');
@@ -6122,8 +5795,6 @@ INSERT INTO schema_migrations (version) VALUES ('20120116135432');
 INSERT INTO schema_migrations (version) VALUES ('20130730164507');
 
 INSERT INTO schema_migrations (version) VALUES ('20130905092258');
-
-INSERT INTO schema_migrations (version) VALUES ('20130906113219');
 
 INSERT INTO schema_migrations (version) VALUES ('20132906113219');
 
