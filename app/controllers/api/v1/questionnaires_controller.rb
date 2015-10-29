@@ -112,22 +112,11 @@ example <<-EOS
 EOS
 
   def index
-    @questionnaires = Questionnaire.
-      includes(:respondents).references(:respondents).
-      where(status: ['Active', 'Closed'])
-    @questionnaires = if @language
-      @questionnaires.
-      where(
-        "languages @> ARRAY[:language] AND language = :language
-        OR NOT languages @> ARRAY[:language] AND is_default_language",
-        language: @language
-      )
-    else
-      @questionnaires.where(is_default_language: true)
-    end.paginate(
-      page: @page,
-      per_page: @per_page
-    ).order(:activated_on).to_a
+    @questionnaires = Questionnaire.with_language(@language).
+      paginate(
+        page: @page,
+        per_page: @per_page
+      ).order(:activated_on).to_a
     respond_with @questionnaires
   end
 

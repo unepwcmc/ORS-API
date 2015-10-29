@@ -17,19 +17,7 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
   def show
-    @questionnaire = Questionnaire.
-      includes(:respondents).references(:respondents).
-      where(status: ['Active', 'Closed']).where(id: params[:id])
-    @questionnaire = if @language
-      @questionnaire.
-      where(
-        "languages @> ARRAY[:language] AND language = :language
-        OR NOT languages @> ARRAY[:language] AND is_default_language",
-        language: @language
-      )
-    else
-      @questionnaire.where(is_default_language: true)
-    end.first
+    @questionnaire = Questionnaire.where(id: params[:id]).with_language(@language).first
     respond_with @questionnaire
   end
 
