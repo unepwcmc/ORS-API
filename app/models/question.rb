@@ -1,15 +1,7 @@
-class Questionnaire < ActiveRecord::Base
+class Question < ActiveRecord::Base
   after_initialize :readonly!
-  self.table_name = :api_questionnaires_view
+  self.table_name = :api_questions_tree_view
   self.primary_key = :id
-
-  has_many :respondents
-  has_many :questions
-
-  default_scope {
-    includes(:respondents).references(:respondents).
-      where(status: ['Active', 'Closed'])
-  }
 
   scope :with_language, -> (language) {
     if language
@@ -22,4 +14,5 @@ class Questionnaire < ActiveRecord::Base
       where(is_default_language: true)
     end
   }
+
 end

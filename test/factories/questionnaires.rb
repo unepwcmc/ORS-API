@@ -9,4 +9,6 @@ FactoryGirl.define do
     is_default_language true
   end
 
+  factory :questionnaire_part, class: Test::QuestionnairePart
+
 end
