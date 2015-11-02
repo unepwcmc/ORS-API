@@ -1,9 +1,26 @@
 <h1> <%= @questionnaire.title %> </h1>
 
-<div class='questionnaire-info'>
+<div class='questionnaire-info' data-questionnaire_id=<%= @questionnaire.id%>>
   <ul class='questionnaire-tabs'>
-    <li>Questionnaire details</li>
-    <li>Questions</li>
+    <li class='active' data-container='questionnaire-details'>Questionnaire details</li>
+    <li data-container='questions'>Questions</li>
   </ul>
-  <div class='questionnaire-tab-container'></div>
+  <div class='questionnaire-tab-container'>
+    <div class='questionnaire-details active-container'>
+      <ul class='details-list'></ul>
+      <h4> Respondents </h4>
+      <table class='respondents-table'>
+        <thead>
+          <tr>
+            <th> Name </th>
+            <th> Status </th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class='questions'>
+      QUESTIONS
+    </div>
+  </div>
 </div>

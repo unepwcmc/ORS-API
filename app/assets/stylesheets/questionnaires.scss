@@ -1,9 +1,8 @@
+@import "variables";
+
 .questionnaire-tabs {
   width: 100%;
   list-style: none;
-  li:first-child {
-    margin-right: -5px;
-  }
   li {
     display: inline-block;
     border: 1px grey solid;
@@ -14,5 +13,27 @@
     box-sizing: border-box;
     height: 30px;
     line-height: 26px;
+    background-color: $grey-10;
   }
+  li:first-child {
+    margin-right: -5px;
+  }
+  li.active {
+    background-color: $white;
+    border-bottom: none;
+  }
+}
+
+.questionnaire-tab-container {
+  width: 1100px;
+  margin: 25px auto;
+  .questionnaire-details {
+    display: block;
+    ul {
+      margin-bottom: 25px;
+      li { margin-top: 10px; }
+      strong { font-weight: bold }
+    }
+  }
+  .questions { display: none; }
 }
