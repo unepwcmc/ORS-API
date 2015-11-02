@@ -13,6 +13,7 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :questionnaires, only: [:index, :show]
   resources :user_sessions
 
   get 'login', to: "user_sessions#new", as: 'login'

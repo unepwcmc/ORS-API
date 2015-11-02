@@ -6,6 +6,7 @@
       </strong>
       <ul class='nav'>
         <li><%= link_to 'API Documentation', '/documentation' %></li>
+        <li><%= link_to 'Live Demo', questionnaires_path %></li>
         <% if current_user %>
           <li>
             <%= link_to (current_user.first_name.present? ? current_user.first_name : current_user.email), user_path(current_user) %>

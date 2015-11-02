@@ -1,0 +1,18 @@
+.questionnaire-tabs {
+  width: 100%;
+  list-style: none;
+  li:first-child {
+    margin-right: -5px;
+  }
+  li {
+    display: inline-block;
+    border: 1px grey solid;
+    text-align: center;
+    width: 50%;
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+    box-sizing: border-box;
+    height: 30px;
+    line-height: 26px;
+  }
+}
