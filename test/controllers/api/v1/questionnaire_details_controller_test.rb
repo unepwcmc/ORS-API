@@ -3,12 +3,9 @@ require 'test_helper'
 describe Api::V1::QuestionnaireDetailsController do
   describe "#show" do
     before do
-      @questionnaire = FactoryGirl.create(:questionnaire)
+      @questionnaire = create_questionnaire
       @questionnaire.questionnaire_fields << FactoryGirl.create(
-        :questionnaire_field, language: 'en', title: 'English title', is_default_language: true
-      )
-      @questionnaire.questionnaire_fields << FactoryGirl.create(
-        :questionnaire_field, language: 'pl', title: 'Polski tytuł'
+        :questionnaire_field, language: 'pl', title: 'Polski tytuł', is_default_language: false
       )
     end
 
