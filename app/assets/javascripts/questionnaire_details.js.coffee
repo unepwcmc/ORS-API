@@ -33,7 +33,14 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     )
 
     respondents_table = @$details_container.find('.respondents-table > tbody')
-    for respondent in questionnaire.respondents
+    respondents =  questionnaire.respondents.sort( (a,b) ->
+      if a.respondent.full_name < b.respondent.full_name
+        return -1
+      else if a.respondent.full_name > b.respondent.full_name
+        return 1
+      else return 0
+    )
+    for respondent in respondents
       respondent = respondent.respondent
       respondents_table.append('<tr>' +
         '<td>' + respondent.full_name + '</td>' +

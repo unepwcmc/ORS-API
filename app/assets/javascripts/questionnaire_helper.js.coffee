@@ -1,4 +1,4 @@
-class @QuestionnaireHelper
+window.QuestionnaireHelper = class QuestionnaireHelper
   submission_percentage: (questionnaire) ->
     respondents = questionnaire.respondents
     no_of_respondents = respondents.length
