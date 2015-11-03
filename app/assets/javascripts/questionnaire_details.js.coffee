@@ -2,6 +2,7 @@ window.QuestionnaireDetails = class QuestionnaireDetails
   constructor: (@$container_el, @$tab_container,
     @$details_container, @$questions_container) ->
 
+    @questionnaire_helper = new QuestionnaireHelper()
     @opts = @$container_el.find('li')
     @get_questionnaire_details()
     @init_events()
@@ -22,7 +23,9 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     )
 
   append_questionnaire_details: (questionnaire) ->
+    [respondents, submissions] = @questionnaire_helper.submission_percentage(questionnaire)
     @$details_container.find('.details-list').append(
+     '<li> <strong>Submission percentage:</strong> ' + submissions + '/' + respondents + '</li>' +
      '<li> <strong>Language:</strong> ' + questionnaire.language + '</li>' +
      '<li> <strong>Available languages:</strong> ' + questionnaire.languages + '</li>' +
      '<li> <strong>Status:</strong> ' + questionnaire.status + '</li>' +
