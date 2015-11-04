@@ -1,0 +1,7 @@
+@import "variables";
+
+table {
+  th, td {
+    &.title { width: 65%; }
+  }
+}
