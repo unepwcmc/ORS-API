@@ -26,1980 +26,6 @@ COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
 SET search_path = public, pg_catalog;
 
 --
--- Name: answer_type; Type: TYPE; Schema: public; Owner: -
---
-
-CREATE TYPE answer_type AS (
-	answer_type_id integer,
-	answer_type_type text
-);
-
-
---
--- Name: clone_questionnaire(integer, integer, boolean); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION clone_questionnaire(old_questionnaire_id integer, in_user_id integer, clone_answers boolean) RETURNS integer
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  new_questionnaire_id INTEGER;
-BEGIN
-  SELECT * INTO new_questionnaire_id FROM copy_questionnaire(
-    old_questionnaire_id, in_user_id
-  );
-  IF NOT FOUND THEN
-    RAISE WARNING 'Unable to clone questionnaire %.', old_questionnaire_id;
-    RETURN -1;
-  END IF;
-
-  PERFORM copy_authorized_submitters(old_questionnaire_id, new_questionnaire_id);
-  PERFORM copy_questionnaire_parts_start(old_questionnaire_id, new_questionnaire_id);
-
-  IF clone_answers THEN
-    PERFORM copy_answers(old_questionnaire_id, new_questionnaire_id);
-  END IF;
-
-  PERFORM copy_questionnaire_parts_end();
-  RETURN new_questionnaire_id;
-END;
-$$;
-
-
---
--- Name: FUNCTION clone_questionnaire(old_questionnaire_id integer, in_user_id integer, clone_answers boolean); Type: COMMENT; Schema: public; Owner: -
---
-
-COMMENT ON FUNCTION clone_questionnaire(old_questionnaire_id integer, in_user_id integer, clone_answers boolean) IS 'Procedure to create a deep copy of a questionnaire.';
-
-
---
--- Name: copy_answer_parts(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_answer_parts(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  CREATE TEMP TABLE tmp_answer_parts () INHERITS (answer_parts);
-
-  WITH answer_parts_to_copy AS (
-    SELECT
-      answer_parts.*,
-      tmp_answers.id AS new_answer_id,
-      tmp_answers.created_at AS new_created_at,
-      tmp_answers.updated_at AS new_updated_at
-    FROM answer_parts
-    JOIN tmp_answers
-    ON tmp_answers.original_id = answer_parts.answer_id
-  ), answer_parts_to_copy_with_resolved_field_types AS (
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_text_answer_fields fields
-    ON answer_parts_to_copy.field_type_type = 'TextAnswerField'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-
-    UNION
-
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_numeric_answers fields
-    ON answer_parts_to_copy.field_type_type = 'NumericAnswer'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-
-    UNION
-
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_rank_answer_options fields
-    ON answer_parts_to_copy.field_type_type = 'RankAnswerOption'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-
-    UNION
-
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_range_answer_options fields
-    ON answer_parts_to_copy.field_type_type = 'RangeAnswerOption'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-
-    UNION
-
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_multi_answer_options fields
-    ON answer_parts_to_copy.field_type_type = 'MultiAnswerOption'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-
-    UNION
-
-    SELECT answer_parts_to_copy.*, fields.id AS new_field_type_id
-    FROM answer_parts_to_copy
-    JOIN tmp_matrix_answer_queries fields
-    ON answer_parts_to_copy.field_type_type = 'MatrixAnswerQuery'
-    AND fields.original_id = answer_parts_to_copy.field_type_id
-  )
-  INSERT INTO tmp_answer_parts (
-    answer_text,
-    answer_id,
-    field_type_type,
-    field_type_id,
-    details_text,
-    answer_text_in_english,
-    original_language,
-    sort_index,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    answer_text,
-    new_answer_id,
-    field_type_type,
-    answer_parts.new_field_type_id,
-    details_text,
-    answer_text_in_english,
-    original_language,
-    sort_index,
-    new_created_at,
-    new_updated_at,
-    answer_parts.id
-  FROM answer_parts_to_copy_with_resolved_field_types answer_parts;
-
-  INSERT INTO answer_part_matrix_options (
-    answer_part_id,
-    matrix_answer_option_id,
-    matrix_answer_drop_option_id,
-    answer_text,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_answer_parts.id,
-    matrix_answer_options.id,
-    matrix_answer_drop_options.id,
-    answer_part_matrix_options.answer_text,
-    tmp_answer_parts.created_at,
-    tmp_answer_parts.updated_at
-  FROM answer_part_matrix_options
-  JOIN tmp_answer_parts
-  ON tmp_answer_parts.original_id = answer_part_matrix_options.answer_part_id
-  LEFT JOIN matrix_answer_options
-  ON matrix_answer_options.original_id = answer_part_matrix_options.matrix_answer_option_id
-  LEFT JOIN matrix_answer_drop_options
-  ON matrix_answer_drop_options.original_id = answer_part_matrix_options.matrix_answer_drop_option_id;
-
-  INSERT INTO answer_parts SELECT * FROM tmp_answer_parts;
-  DROP TABLE tmp_answer_parts;
-END;
-$$;
-
-
---
--- Name: copy_answer_types_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_answer_types_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  INSERT INTO text_answers SELECT * FROM tmp_text_answers;
-  DROP TABLE tmp_text_answers;
-  INSERT INTO text_answer_fields SELECT * FROM tmp_text_answer_fields;
-  DROP TABLE tmp_text_answer_fields;
-  INSERT INTO numeric_answers SELECT * FROM tmp_numeric_answers;
-  DROP TABLE tmp_numeric_answers;
-  INSERT INTO rank_answers SELECT * FROM tmp_rank_answers;
-  DROP TABLE tmp_rank_answers;
-  INSERT INTO rank_answer_options SELECT * FROM tmp_rank_answer_options;
-  DROP TABLE tmp_rank_answer_options;
-  INSERT INTO range_answers SELECT * FROM tmp_range_answers;
-  DROP TABLE tmp_range_answers;
-  INSERT INTO range_answer_options SELECT * FROM tmp_range_answer_options;
-  DROP TABLE tmp_range_answer_options;
-  INSERT INTO multi_answers SELECT * FROM tmp_multi_answers;
-  DROP TABLE tmp_multi_answers;
-  INSERT INTO multi_answer_options SELECT * FROM tmp_multi_answer_options;
-  DROP TABLE tmp_multi_answer_options;
-  INSERT INTO matrix_answers SELECT * FROM tmp_matrix_answers;
-  DROP TABLE tmp_matrix_answers;
-  INSERT INTO matrix_answer_queries SELECT * FROM tmp_matrix_answer_queries;
-  DROP TABLE tmp_matrix_answer_queries;
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_answer_types_start(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_answer_types_start(old_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  -- create temp tables to hold answer types for the duration of the cloning
-  CREATE TEMP TABLE tmp_text_answers () INHERITS (text_answers);
-  CREATE TEMP TABLE tmp_text_answer_fields () INHERITS (text_answer_fields);
-  PERFORM copy_text_answers_to_tmp(old_questionnaire_id);
-  CREATE TEMP TABLE tmp_numeric_answers () INHERITS (numeric_answers);
-  PERFORM copy_numeric_answers_to_tmp(old_questionnaire_id);
-  CREATE TEMP TABLE tmp_rank_answers () INHERITS (rank_answers);
-  CREATE TEMP TABLE tmp_rank_answer_options () INHERITS (rank_answer_options);
-  PERFORM copy_rank_answers_to_tmp(old_questionnaire_id);
-  CREATE TEMP TABLE tmp_range_answers () INHERITS (range_answers);
-  CREATE TEMP TABLE tmp_range_answer_options () INHERITS (range_answer_options);
-  PERFORM copy_range_answers_to_tmp(old_questionnaire_id);
-  CREATE TEMP TABLE tmp_multi_answers () INHERITS (multi_answers);
-  CREATE TEMP TABLE tmp_multi_answer_options () INHERITS (multi_answer_options);
-  PERFORM copy_multi_answers_to_tmp(old_questionnaire_id);
-  CREATE TEMP TABLE tmp_matrix_answers () INHERITS (matrix_answers);
-  CREATE TEMP TABLE tmp_matrix_answer_queries () INHERITS (matrix_answer_queries);
-  PERFORM copy_matrix_answers_to_tmp(old_questionnaire_id);
-
-  WITH answer_type_fields_with_resolved_ids AS (
-    SELECT t.*, tmp_text_answers.id AS new_answer_type_id
-    FROM tmp_text_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'TextAnswer'
-    AND t.answer_type_id = tmp_text_answers.original_id
-
-    UNION
-
-    SELECT t.*, tmp_numeric_answers.id AS new_answer_type_id
-    FROM tmp_numeric_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'NumericAnswer'
-    AND t.answer_type_id = tmp_numeric_answers.original_id
-
-    UNION
-
-    SELECT t.*, tmp_rank_answers.id AS new_answer_type_id
-    FROM tmp_rank_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'RankAnswer'
-    AND t.answer_type_id = tmp_rank_answers.original_id
-
-    UNION
-
-    SELECT t.*, tmp_range_answers.id AS new_answer_type_id
-    FROM tmp_range_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'RangeAnswer'
-    AND t.answer_type_id = tmp_range_answers.original_id
-
-    UNION
-
-    SELECT t.*, tmp_multi_answers.id AS new_answer_type_id
-    FROM tmp_multi_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'MultiAnswer'
-    AND t.answer_type_id = tmp_multi_answers.original_id
-
-    UNION
-
-    SELECT t.*, tmp_matrix_answers.id AS new_answer_type_id
-    FROM tmp_matrix_answers
-    JOIN answer_type_fields t
-    ON t.answer_type_type = 'MatrixAnswer'
-    AND t.answer_type_id = tmp_matrix_answers.original_id
-  )
-  INSERT INTO answer_type_fields (
-    answer_type_type,
-    answer_type_id,
-    language,
-    is_default_language,
-    help_text,
-    created_at,
-    updated_at
-  )
-  SELECT
-    answer_type_type,
-    new_answer_type_id,
-    language,
-    is_default_language,
-    help_text,
-    current_timestamp,
-    current_timestamp
-  FROM answer_type_fields_with_resolved_ids;
-
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_answers(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_answers(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  CREATE TEMP TABLE tmp_answers () INHERITS (answers);
-
-  INSERT INTO tmp_answers (
-    user_id,
-    last_editor_id,
-    questionnaire_id,
-    question_id,
-    loop_item_id,
-    other_text,
-    looping_identifier,
-    from_dependent_section,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    user_id,
-    last_editor_id,
-    new_questionnaire_id,
-    question_id,
-    loop_item_id,
-    other_text,
-    looping_identifier,
-    from_dependent_section,
-    current_timestamp,
-    current_timestamp,
-    answers.id
-  FROM answers
-  WHERE answers.questionnaire_id = old_questionnaire_id;
-
-  -- resolve questions
-  UPDATE tmp_answers
-  SET question_id = tmp_questions.id
-  FROM tmp_questions
-  WHERE tmp_questions.original_id = tmp_answers.question_id;
-
-  -- resolve loop items
-  UPDATE tmp_answers
-  SET loop_item_id = tmp_loop_items.id
-  FROM tmp_loop_items
-  WHERE tmp_loop_items.original_id = tmp_answers.loop_item_id;
-
-  -- now resolve the amazing looping identifiers
-  WITH expanded_looping_identifiers AS (
-    -- these subqueries ensure that we know the original order of loop items
-    -- within the looping identifier
-    SELECT answer_id, arr[pos]::INT AS loop_item_id, pos
-    FROM  (
-      SELECT *, GENERATE_SUBSCRIPTS(arr, 1) AS pos
-      FROM  (
-        SELECT id AS answer_id, STRING_TO_ARRAY(looping_identifier, 'S') AS arr
-        FROM tmp_answers
-      ) x
-   ) y
-  ), resolved_loop_item_ids AS (
-    SELECT t.answer_id, t.loop_item_id, t.pos, tmp_loop_items.id AS new_loop_item_id
-    FROM expanded_looping_identifiers t
-    JOIN tmp_loop_items
-    ON tmp_loop_items.original_id = t.loop_item_id
-  ), resolved_looping_identifiers AS (
-    SELECT
-      resolved_loop_item_ids.answer_id,
-      ARRAY_TO_STRING(ARRAY_AGG(new_loop_item_id::TEXT ORDER BY pos), 'S') AS new_looping_identifier
-    FROM resolved_loop_item_ids
-    GROUP BY answer_id
-  )
-  UPDATE tmp_answers
-  SET looping_identifier = new_looping_identifier
-  FROM resolved_looping_identifiers
-  WHERE resolved_looping_identifiers.answer_id = tmp_answers.id;
-
-  INSERT INTO answer_links (
-    answer_id,
-    url,
-    description,
-    title,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_answers.id,
-    url,
-    description,
-    title,
-    tmp_answers.created_at,
-    tmp_answers.updated_at
-  FROM answer_links
-  JOIN tmp_answers
-  ON tmp_answers.original_id = answer_links.id;
-
-  INSERT INTO documents (
-    answer_id,
-    doc_file_name,
-    doc_content_type,
-    doc_file_size,
-    doc_updated_at,
-    description,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_answers.id,
-    doc_file_name,
-    doc_content_type,
-    doc_file_size,
-    doc_updated_at,
-    description,
-    tmp_answers.created_at,
-    tmp_answers.updated_at,
-    documents.id
-  FROM documents
-  JOIN tmp_answers
-  ON tmp_answers.original_id = documents.answer_id;
-
-  PERFORM copy_answer_parts(old_questionnaire_id, new_questionnaire_id);
-
-  INSERT INTO answers SELECT * FROM tmp_answers;
-  DROP TABLE tmp_answers;
-END;
-$$;
-
-
---
--- Name: copy_authorized_submitters(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_authorized_submitters(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE sql
-    AS $$
-
-  INSERT INTO authorized_submitters (
-    user_id,
-    questionnaire_id,
-    status,
-    language,
-    total_questions,
-    answered_questions,
-    requested_unsubmission,
-    created_at,
-    updated_at
-  )
-  SELECT
-    user_id,
-    new_questionnaire_id,
-    1, --underway
-    language,
-    total_questions,
-    answered_questions,
-    requested_unsubmission,
-    current_timestamp,
-    current_timestamp
-  FROM authorized_submitters
-  WHERE questionnaire_id = old_questionnaire_id;
-
-$$;
-
-
---
--- Name: copy_delegations(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_delegations(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH copied_delegations AS (
-    INSERT INTO delegations (
-      questionnaire_id,
-      user_delegate_id,
-      remarks,
-      from_submission,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      questionnaires.id,
-      user_delegate_id,
-      remarks,
-      from_submission,
-      questionnaires.created_at,
-      questionnaires.updated_at,
-      delegations.id
-    FROM delegations
-    JOIN questionnaires
-    ON questionnaires.original_id = delegations.questionnaire_id
-    WHERE questionnaires.id = new_questionnaire_id
-    RETURNING *
-  ), copied_delegation_sections AS (
-    INSERT INTO delegation_sections (
-      delegation_id,
-      section_id,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      copied_delegations.id,
-      tmp_sections.id,
-      copied_delegations.created_at,
-      copied_delegations.updated_at,
-      delegation_sections.id
-    FROM delegation_sections
-    JOIN copied_delegations
-    ON copied_delegations.original_id = delegation_sections.delegation_id
-    JOIN tmp_sections
-    ON tmp_sections.original_id = delegation_sections.section_id
-    RETURNING *
-  )
-  INSERT INTO delegated_loop_item_names (
-    delegation_section_id,
-    loop_item_name_id,
-    created_at,
-    updated_at
-  )
-  SELECT
-    copied_delegation_sections.id,
-    tmp_loop_item_names.id,
-    copied_delegation_sections.created_at,
-    copied_delegation_sections.updated_at
-  FROM delegated_loop_item_names
-  JOIN copied_delegation_sections
-  ON copied_delegation_sections.original_id = delegated_loop_item_names.delegation_section_id
-  JOIN tmp_loop_item_names
-  ON tmp_loop_item_names.original_id = delegated_loop_item_names.loop_item_name_id;
-END;
-$$;
-
-
---
--- Name: copy_extras(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_extras(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  CREATE TEMP TABLE tmp_extras () INHERITS (extras);
-
-  INSERT INTO tmp_extras (
-    name,
-    loop_item_type_id,
-    field_type,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    extras.name,
-    tmp_loop_item_types.id,
-    field_type,
-    current_timestamp,
-    current_timestamp,
-    extras.id
-  FROM extras
-  JOIN tmp_loop_item_types
-  ON tmp_loop_item_types.original_id = extras.loop_item_type_id;
-
-  WITH copied_item_extras AS (
-    INSERT INTO item_extras (
-      loop_item_name_id,
-      extra_id,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      tmp_loop_item_names.id,
-      tmp_extras.id,
-      current_timestamp,
-      current_timestamp,
-      item_extras.id
-    FROM item_extras
-    JOIN tmp_extras
-    ON tmp_extras.original_id = item_extras.extra_id
-    JOIN tmp_loop_item_names
-    ON tmp_loop_item_names.original_id = item_extras.loop_item_name_id
-    RETURNING *
-  )
-  INSERT INTO item_extra_fields (
-    item_extra_id,
-    language,
-    value,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    copied_item_extras.id,
-    language,
-    value,
-    is_default_language,
-    current_timestamp,
-    current_timestamp
-  FROM item_extra_fields
-  JOIN copied_item_extras
-  ON copied_item_extras.original_id = item_extra_fields.item_extra_id;
-
-  INSERT INTO section_extras (
-    section_id,
-    extra_id,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_sections.id,
-    tmp_extras.id,
-    tmp_sections.created_at,
-    tmp_sections.updated_at
-  FROM section_extras
-  JOIN tmp_sections
-  ON tmp_sections.original_id = section_extras.section_id
-  JOIN tmp_extras
-  ON tmp_extras.original_id = section_extras.extra_id;
-
-  INSERT INTO question_extras (
-    question_id,
-    extra_id,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_questions.id,
-    tmp_extras.id,
-    tmp_questions.created_at,
-    tmp_questions.updated_at
-  FROM section_extras
-  JOIN tmp_questions
-  ON tmp_questions.original_id = section_extras.section_id
-  JOIN tmp_extras
-  ON tmp_extras.original_id = section_extras.extra_id;
-
-  INSERT INTO extras SELECT * FROM tmp_extras;
-  DROP TABLE tmp_extras;
-END;
-$$;
-
-
---
--- Name: copy_loop_items_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_loop_items_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  INSERT INTO loop_item_names
-  SELECT * FROM tmp_loop_item_names;
-  DROP TABLE tmp_loop_item_names;
-
-  INSERT INTO loop_items SELECT * FROM tmp_loop_items;
-  DROP TABLE tmp_loop_items;
-END;
-$$;
-
-
---
--- Name: copy_loop_items_start(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_loop_items_start(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  CREATE TEMP TABLE tmp_loop_item_names () INHERITS (loop_item_names);
-  CREATE TEMP TABLE tmp_loop_items () INHERITS (loop_items);
-
-  INSERT INTO tmp_loop_item_names (
-    loop_source_id,
-    loop_item_type_id,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_loop_sources.id,
-    tmp_loop_item_types.id,
-    current_timestamp,
-    current_timestamp,
-    loop_item_names.id
-  FROM loop_item_names
-  JOIN tmp_loop_sources
-  ON tmp_loop_sources.original_id = loop_item_names.loop_source_id
-  JOIN tmp_loop_item_types
-  ON tmp_loop_item_types.original_id = loop_item_names.loop_item_type_id;
-
-  INSERT INTO loop_item_name_fields (
-    loop_item_name_id,
-    item_name,
-    language,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_loop_item_names.id,
-    item_name,
-    language,
-    is_default_language,
-    tmp_loop_item_names.created_at,
-    tmp_loop_item_names.updated_at
-  FROM loop_item_name_fields
-  JOIN tmp_loop_item_names
-  ON tmp_loop_item_names.original_id = loop_item_name_fields.loop_item_name_id;
-
-  INSERT INTO tmp_loop_items (
-    loop_item_type_id,
-    loop_item_name_id,
-    parent_id,
-    lft,
-    rgt,
-    sort_index,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_loop_item_types.id,
-    tmp_loop_item_names.id,
-    loop_items.parent_id,
-    loop_items.lft,
-    loop_items.rgt,
-    sort_index,
-    current_timestamp,
-    current_timestamp,
-    loop_items.id
-  FROM loop_items
-  JOIN tmp_loop_item_types
-  ON tmp_loop_item_types.original_id = loop_items.loop_item_type_id
-  JOIN tmp_loop_item_names
-  ON tmp_loop_item_names.original_id = loop_items.loop_item_name_id;
-
-  -- udate parent_id
-  UPDATE tmp_loop_items
-  SET parent_id = parents.id
-  FROM tmp_loop_items parents
-  WHERE parents.original_id = tmp_loop_items.parent_id;
-  -- NOTE: run the acts_as_nested_set rebuild script afterwards to reset lft & rgt
-END;
-$$;
-
-
---
--- Name: copy_loop_sources_and_item_types_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_loop_sources_and_item_types_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  INSERT INTO loop_item_types
-  SELECT * FROM tmp_loop_item_types;
-  DROP TABLE tmp_loop_item_types;
-
-  INSERT INTO loop_sources
-  SELECT * FROM tmp_loop_sources;
-  DROP TABLE tmp_loop_sources;
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_loop_sources_and_item_types_start(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_loop_sources_and_item_types_start(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  -- create temp tables to hold loop sources and answer types for the duration of the cloning
-  CREATE TEMP TABLE tmp_loop_sources () INHERITS (loop_sources);
-  CREATE TEMP TABLE tmp_loop_item_types () INHERITS (loop_item_types);
-
-  INSERT INTO tmp_loop_sources(
-    name,
-    questionnaire_id,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    name,
-    new_questionnaire_id,
-    current_timestamp,
-    current_timestamp,
-    loop_sources.id
-  FROM loop_sources
-  WHERE questionnaire_id = old_questionnaire_id;
-
-  INSERT INTO source_files (
-    loop_source_id,
-    source_file_name,
-    source_content_type,
-    source_file_size,
-    parse_status,
-    source_updated_at,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_loop_sources.id,
-    source_file_name,
-    source_content_type,
-    source_file_size,
-    parse_status,
-    tmp_loop_sources.updated_at,
-    tmp_loop_sources.created_at,
-    tmp_loop_sources.updated_at
-  FROM source_files
-  JOIN tmp_loop_sources
-  ON tmp_loop_sources.original_id = source_files.loop_source_id;
-
-  WITH copied_filtering_fields AS (
-    INSERT INTO filtering_fields (
-      name,
-      questionnaire_id,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      name,
-      new_questionnaire_id,
-      current_timestamp,
-      current_timestamp,
-      filtering_fields.id
-    FROM filtering_fields
-    WHERE questionnaire_id = old_questionnaire_id
-    RETURNING *
-  )
-  INSERT INTO tmp_loop_item_types (
-    loop_source_id,
-    filtering_field_id,
-    name,
-    parent_id,
-    lft,
-    rgt,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_loop_sources.id,
-    copied_filtering_fields.id,
-    loop_item_types.name,
-    parent_id,
-    lft,
-    rgt,
-    current_timestamp,
-    current_timestamp,
-    loop_item_types.id
-  FROM loop_item_types
-  LEFT JOIN tmp_loop_sources
-  ON tmp_loop_sources.original_id = loop_item_types.loop_source_id
-  LEFT JOIN copied_filtering_fields
-  ON copied_filtering_fields.original_id = loop_item_types.filtering_field_id;
-
-  -- udate parent_id
-  UPDATE tmp_loop_item_types
-  SET parent_id = parents.id
-  FROM tmp_loop_item_types parents
-  WHERE parents.original_id = tmp_loop_item_types.parent_id;
-  -- NOTE: run the acts_as_nested_set rebuild script afterwards to reset lft & rgt
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_matrix_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_matrix_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH matrix_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'MatrixAnswer')
-  )
-  INSERT INTO tmp_matrix_answers (
-    display_reply,
-    matrix_orientation,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    display_reply,
-    matrix_orientation,
-    current_timestamp,
-    current_timestamp,
-    matrix_answers.id
-  FROM matrix_answers
-  JOIN matrix_answers_to_copy t
-  ON t.answer_type_id = matrix_answers.id;
-
-  WITH copied_matrix_answer_options AS (
-    INSERT INTO matrix_answer_options (
-      matrix_answer_id,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      tmp_matrix_answers.id,
-      current_timestamp,
-      current_timestamp,
-      t.id
-    FROM matrix_answer_options t
-    JOIN tmp_matrix_answers
-    ON tmp_matrix_answers.original_id = t.matrix_answer_id
-    RETURNING *
-  )
-  INSERT INTO matrix_answer_option_fields (
-    matrix_answer_option_id,
-    language,
-    title,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    copied_matrix_answer_options.id,
-    language,
-    title,
-    is_default_language,
-    current_timestamp,
-    current_timestamp
-  FROM matrix_answer_option_fields t
-  JOIN copied_matrix_answer_options
-  ON copied_matrix_answer_options.original_id = t.matrix_answer_option_id;
-
-  WITH copied_matrix_answer_drop_options AS (
-    INSERT INTO matrix_answer_drop_options (
-      matrix_answer_id,
-      created_at,
-      updated_at,
-      original_id
-    )
-    SELECT
-      tmp_matrix_answers.id,
-      current_timestamp,
-      current_timestamp,
-      t.id
-    FROM matrix_answer_drop_options t
-    JOIN tmp_matrix_answers
-    ON tmp_matrix_answers.original_id = t.matrix_answer_id
-    RETURNING *
-  )
-  INSERT INTO matrix_answer_drop_option_fields (
-    matrix_answer_drop_option_id,
-    language,
-    is_default_language,
-    option_text,
-    created_at,
-    updated_at
-  )
-  SELECT
-    copied_matrix_answer_drop_options.id,
-    language,
-    is_default_language,
-    option_text,
-    current_timestamp,
-    current_timestamp
-  FROM matrix_answer_drop_option_fields t
-  JOIN copied_matrix_answer_drop_options
-  ON copied_matrix_answer_drop_options.original_id = t.matrix_answer_drop_option_id;
-
-  INSERT INTO tmp_matrix_answer_queries (
-    matrix_answer_id,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_matrix_answers.id,
-    current_timestamp,
-    current_timestamp,
-    t.id
-  FROM matrix_answer_queries t
-  JOIN tmp_matrix_answers
-  ON tmp_matrix_answers.original_id = t.matrix_answer_id;
-
-  INSERT INTO matrix_answer_query_fields (
-    matrix_answer_query_id,
-    language,
-    title,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_matrix_answer_queries.id,
-    language,
-    title,
-    is_default_language,
-    current_timestamp,
-    current_timestamp
-  FROM matrix_answer_query_fields t
-  JOIN tmp_matrix_answer_queries
-  ON tmp_matrix_answer_queries.original_id = t.matrix_answer_query_id;
-
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_multi_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_multi_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH multi_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'MultiAnswer')
-  )
-  INSERT INTO tmp_multi_answers (
-    single,
-    other_required,
-    display_type,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    single,
-    other_required,
-    display_type,
-    multi_answers.created_at,
-    current_timestamp,
-    multi_answers.id
-  FROM multi_answers
-  JOIN multi_answers_to_copy t
-  ON t.answer_type_id = multi_answers.id;
-
-  INSERT INTO tmp_multi_answer_options (
-    multi_answer_id,
-    details_field,
-    sort_index,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_multi_answers.id,
-    details_field,
-    sort_index,
-    tmp_multi_answers.created_at,
-    tmp_multi_answers.updated_at,
-    t.id
-  FROM multi_answer_options t
-  JOIN tmp_multi_answers
-  ON tmp_multi_answers.original_id = t.multi_answer_id;
-
-  INSERT INTO multi_answer_option_fields (
-    multi_answer_option_id,
-    option_text,
-    language,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_multi_answer_options.id,
-    option_text,
-    language,
-    is_default_language,
-    tmp_multi_answer_options.created_at,
-    tmp_multi_answer_options.updated_at
-  FROM multi_answer_option_fields t
-  JOIN tmp_multi_answer_options
-  ON tmp_multi_answer_options.original_id = t.multi_answer_option_id;
-
-  INSERT INTO other_fields (
-    multi_answer_id,
-    other_text,
-    language,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_multi_answers.id,
-    other_text,
-    language,
-    is_default_language,
-    tmp_multi_answers.created_at,
-    tmp_multi_answers.updated_at
-  FROM other_fields
-  JOIN tmp_multi_answers
-  ON tmp_multi_answers.original_id = other_fields.multi_answer_id;
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_numeric_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_numeric_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH numeric_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'NumericAnswer')
-  )
-  INSERT INTO tmp_numeric_answers (
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    current_timestamp,
-    current_timestamp,
-    numeric_answers.id
-  FROM numeric_answers
-  JOIN numeric_answers_to_copy t
-  ON t.answer_type_id = numeric_answers.id;
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_questionnaire(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_questionnaire(in_questionnaire_id integer, in_user_id integer) RETURNS integer
-    LANGUAGE sql
-    AS $$
-  WITH copied_questionnaires AS (
-    INSERT INTO questionnaires (
-      user_id,
-      last_editor_id,
-      administrator_remarks,
-      questionnaire_date,
-      header_file_name,
-      header_content_type,
-      header_file_size,
-      header_updated_at,
-      status,
-      display_in_tab_max_level,
-      delegation_enabled,
-      help_pages,
-      translator_visible,
-      private_documents,
-      created_at,
-      updated_at,
-      activated_at,
-      last_edited,
-      original_id
-    )
-    SELECT
-      in_user_id,
-      in_user_id,
-      administrator_remarks,
-      questionnaire_date,
-      header_file_name,
-      header_content_type,
-      header_file_size,
-      header_updated_at,
-      0, -- not started
-      display_in_tab_max_level,
-      delegation_enabled,
-      help_pages,
-      translator_visible,
-      private_documents,
-      current_timestamp,
-      current_timestamp,
-      NULL,
-      NULL,
-      id
-    FROM questionnaires
-    WHERE id = in_questionnaire_id
-    RETURNING *
-  ), copied_questionnaire_fields AS (
-    INSERT INTO questionnaire_fields (
-      questionnaire_id,
-      language,
-      title,
-      introductory_remarks,
-      is_default_language,
-      email_subject,
-      email,
-      email_footer,
-      submit_info_tip
-    )
-    SELECT
-      copied_questionnaires.id,
-      t.language,
-      'COPY ' || TO_CHAR(copied_questionnaires.created_at, 'DD/MM/YYYY') || ': ' || t.title,
-      t.introductory_remarks,
-      t.is_default_language,
-      t.email_subject,
-      t.email,
-      t.email_footer,
-      t.submit_info_tip
-    FROM questionnaire_fields t
-    JOIN copied_questionnaires
-    ON copied_questionnaires.original_id = t.questionnaire_id
-  )
-  SELECT id FROM copied_questionnaires;
-$$;
-
-
---
--- Name: copy_questionnaire_parts_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_questionnaire_parts_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  PERFORM copy_questions_end();
-  PERFORM copy_sections_end();
-  PERFORM copy_loop_items_end();
-  PERFORM copy_loop_sources_and_item_types_end();
-  PERFORM copy_answer_types_end();
-
-  -- insert into questionnaire_parts
-  INSERT INTO questionnaire_parts SELECT * FROM tmp_questionnaire_parts;
-  DROP TABLE tmp_questionnaire_parts;
-END;
-$$;
-
-
---
--- Name: copy_questionnaire_parts_start(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_questionnaire_parts_start(old_questionnaire_id integer, new_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  -- use a temporary table to isolate the copied questionnaire_parts tree
-  -- while resolving parent_id and part_id
-  CREATE TEMP TABLE tmp_questionnaire_parts () INHERITS (questionnaire_parts);
-
-  -- the truly amazing thing is: this table will use the same sequence
-  -- to generate primary keys as the master table
-  INSERT INTO tmp_questionnaire_parts (
-    questionnaire_id,
-    part_id,
-    part_type,
-    created_at,
-    updated_at,
-    parent_id,
-    lft,
-    rgt,
-    original_id
-  )
-  SELECT
-    CASE
-      WHEN questionnaire_id IS NULL THEN NULL
-      ELSE new_questionnaire_id
-    END AS questionnaire_id,
-    part_id,
-    part_type,
-    current_timestamp AS created_at,
-    current_timestamp AS updated_at,
-    parent_id,
-    lft,
-    rgt,
-    parts.id AS original_id
-  FROM questionnaire_parts_with_descendents(old_questionnaire_id) parts;
-
-  -- udate parent_id
-  UPDATE tmp_questionnaire_parts
-  SET parent_id = parents.id
-  FROM tmp_questionnaire_parts parents
-  WHERE parents.original_id = tmp_questionnaire_parts.parent_id;
-  -- NOTE: run the acts_as_nested_set rebuild script afterwards to reset lft & rgt
-
-  PERFORM copy_answer_types_start(old_questionnaire_id);
-  PERFORM copy_loop_sources_and_item_types_start(old_questionnaire_id, new_questionnaire_id);
-  PERFORM copy_loop_items_start(old_questionnaire_id, new_questionnaire_id);
-  PERFORM copy_sections_start(old_questionnaire_id);
-  PERFORM copy_questions_start(old_questionnaire_id);
-
-  PERFORM copy_extras(old_questionnaire_id, new_questionnaire_id);
-  PERFORM copy_delegations(old_questionnaire_id, new_questionnaire_id);
-
-  UPDATE tmp_questionnaire_parts
-  SET part_id = tmp_sections.id
-  FROM tmp_sections
-  WHERE tmp_sections.original_id = tmp_questionnaire_parts.part_id
-    AND tmp_questionnaire_parts.part_type = 'Section';
-
-  UPDATE tmp_questionnaire_parts
-  SET part_id = tmp_questions.id
-  FROM tmp_questions
-  WHERE tmp_questions.original_id = tmp_questionnaire_parts.part_id
-    AND tmp_questionnaire_parts.part_type = 'Question';
-  RETURN;
-
-END;
-$$;
-
-
---
--- Name: copy_questions_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_questions_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  INSERT INTO questions SELECT * FROM tmp_questions;
-  DROP TABLE tmp_questions;
-END;
-$$;
-
-
---
--- Name: copy_questions_start(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_questions_start(old_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-
-  CREATE TEMP TABLE tmp_questions () INHERITS (questions);
-
-  WITH questions_to_copy AS (
-    SELECT * FROM questionnaire_questions(old_questionnaire_id)
-  ), questions_to_copy_with_resolved_answer_types AS (
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_text_answers tmp
-    ON questions_to_copy.answer_type_type = 'TextAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-
-    UNION
-
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_numeric_answers tmp
-    ON questions_to_copy.answer_type_type = 'NumericAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-
-    UNION
-
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_rank_answers tmp
-    ON questions_to_copy.answer_type_type = 'RankAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-
-    UNION
-
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_range_answers tmp
-    ON questions_to_copy.answer_type_type = 'RangeAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-
-    UNION
-
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_multi_answers tmp
-    ON questions_to_copy.answer_type_type = 'MultiAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-
-    UNION
-
-    SELECT questions_to_copy.*, tmp.id AS new_answer_type_id
-    FROM questions_to_copy
-    JOIN tmp_matrix_answers tmp
-    ON questions_to_copy.answer_type_type = 'MatrixAnswer'
-    AND tmp.original_id = questions_to_copy.answer_type_id
-  )
-  INSERT INTO tmp_questions (
-    type,
-    "number",
-    section_id,
-    answer_type_id,
-    answer_type_type,
-    is_mandatory,
-    ordering,
-    created_at,
-    updated_at,
-    last_edited,
-    original_id
-  )
-  SELECT
-    type,
-    "number",
-    tmp_sections.id,
-    new_answer_type_id,
-    t.answer_type_type,
-    is_mandatory,
-    ordering,
-    current_timestamp,
-    current_timestamp,
-    NULL,
-    t.id
-  FROM questions_to_copy_with_resolved_answer_types t
-  JOIN tmp_sections
-  ON tmp_sections.original_id = t.section_id;
-
-  INSERT INTO question_fields (
-    title,
-    short_title,
-    language,
-    description,
-    question_id,
-    created_at,
-    updated_at,
-    is_default_language
-  )
-  SELECT
-    title,
-    short_title,
-    language,
-    description,
-    tmp_questions.id,
-    current_timestamp,
-    current_timestamp,
-    is_default_language
-  FROM question_fields t
-  JOIN tmp_questions
-  ON tmp_questions.original_id = t.question_id;
-
-  -- this is about sections that depend on an answer to a multi answer question
-  PERFORM resolve_dependent_question_in_copied_sections();
-
-  INSERT INTO question_loop_types (
-    question_id,
-    loop_item_type_id,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_questions.id,
-    tmp_loop_item_types.id,
-    tmp_questions.created_at,
-    tmp_questions.updated_at
-  FROM question_loop_types
-  JOIN tmp_questions
-  ON tmp_questions.original_id = question_loop_types.question_id
-  JOIN tmp_loop_item_types
-  ON tmp_loop_item_types.original_id = question_loop_types.loop_item_type_id;
-
-END;
-$$;
-
-
---
--- Name: copy_range_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_range_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH range_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'RangeAnswer')
-  )
-  INSERT INTO tmp_range_answers (
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    current_timestamp,
-    current_timestamp,
-    range_answers.id
-  FROM range_answers
-  JOIN range_answers_to_copy t
-  ON t.answer_type_id = range_answers.id;
-
-  INSERT INTO tmp_range_answer_options (
-    range_answer_id,
-    sort_index,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_range_answers.id,
-    sort_index,
-    tmp_range_answers.created_at,
-    tmp_range_answers.updated_at,
-    t.id
-  FROM range_answer_options t
-  JOIN tmp_range_answers
-  ON tmp_range_answers.original_id = t.range_answer_id;
-
-  INSERT INTO range_answer_option_fields (
-    range_answer_option_id,
-    option_text,
-    language,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_range_answer_options.id,
-    option_text,
-    language,
-    is_default_language,
-    tmp_range_answer_options.created_at,
-    tmp_range_answer_options.updated_at
-  FROM range_answer_option_fields t
-  JOIN tmp_range_answer_options
-  ON tmp_range_answer_options.original_id = t.range_answer_option_id;
-
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_rank_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_rank_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH rank_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'RankAnswer')
-  )
-  INSERT INTO tmp_rank_answers (
-    maximum_choices,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    maximum_choices,
-    current_timestamp,
-    current_timestamp,
-    rank_answers.id
-  FROM rank_answers
-  JOIN rank_answers_to_copy t
-  ON t.answer_type_id = rank_answers.id;
-
-  INSERT INTO tmp_rank_answer_options (
-    rank_answer_id,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_rank_answers.id,
-    tmp_rank_answers.created_at,
-    tmp_rank_answers.updated_at,
-    t.id
-  FROM rank_answer_options t
-  JOIN tmp_rank_answers
-  ON tmp_rank_answers.original_id = t.rank_answer_id;
-
-  INSERT INTO rank_answer_option_fields (
-    rank_answer_option_id,
-    language,
-    option_text,
-    is_default_language,
-    created_at,
-    updated_at
-  )
-  SELECT
-    tmp_rank_answer_options.id,
-    language,
-    option_text,
-    is_default_language,
-    tmp_rank_answer_options.created_at,
-    tmp_rank_answer_options.updated_at
-  FROM rank_answer_option_fields t
-  JOIN tmp_rank_answer_options
-  ON tmp_rank_answer_options.original_id = t.rank_answer_option_id;
-
-  RETURN;
-END;
-$$;
-
-
---
--- Name: copy_sections_end(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_sections_end() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  INSERT INTO sections SELECT * FROM tmp_sections;
-  DROP TABLE tmp_sections;
-END;
-$$;
-
-
---
--- Name: copy_sections_start(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_sections_start(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  CREATE TEMP TABLE tmp_sections () INHERITS (sections);
-
-  WITH sections_to_copy AS (
-    SELECT * FROM questionnaire_sections(in_questionnaire_id)
-  ), sections_to_copy_with_resolved_answer_types AS (
-    SELECT sections_to_copy.*, NULL AS new_answer_type_id
-    FROM sections_to_copy
-    WHERE answer_type_id IS NULL
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_text_answers tmp
-    ON sections_to_copy.answer_type_type = 'TextAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_numeric_answers tmp
-    ON sections_to_copy.answer_type_type = 'NumericAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_rank_answers tmp
-    ON sections_to_copy.answer_type_type = 'RankAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_range_answers tmp
-    ON sections_to_copy.answer_type_type = 'RangeAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_multi_answers tmp
-    ON sections_to_copy.answer_type_type = 'MultiAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-
-    UNION
-
-    SELECT sections_to_copy.*, tmp.id AS new_answer_type_id
-    FROM sections_to_copy
-    JOIN tmp_matrix_answers tmp
-    ON sections_to_copy.answer_type_type = 'MatrixAnswer'
-    AND tmp.original_id = sections_to_copy.answer_type_id
-  ), sections_to_copy_with_resolved_loop_source_and_item_type AS (
-    SELECT sections_to_copy.*,
-    tmp_loop_sources.id AS new_loop_source_id,
-    tmp_loop_item_types.id AS new_loop_item_type_id
-    FROM sections_to_copy_with_resolved_answer_types sections_to_copy
-    LEFT JOIN tmp_loop_item_types
-    ON tmp_loop_item_types.original_id = sections_to_copy.loop_item_type_id
-    LEFT JOIN tmp_loop_sources
-    ON tmp_loop_sources.original_id = sections_to_copy.loop_source_id
-  )
-  INSERT INTO tmp_sections (
-    section_type,
-    answer_type_id,
-    answer_type_type,
-    loop_source_id,
-    loop_item_type_id,
-    depends_on_option_id,
-    depends_on_option_value,
-    depends_on_question_id,
-    is_hidden,
-    starts_collapsed,
-    display_in_tab,
-    created_at,
-    updated_at,
-    last_edited,
-    original_id
-  )
-  SELECT
-    section_type,
-    new_answer_type_id,
-    answer_type_type,
-    new_loop_source_id,
-    new_loop_item_type_id,
-    depends_on_option_id,
-    depends_on_option_value,
-    depends_on_question_id,
-    is_hidden,
-    starts_collapsed,
-    display_in_tab,
-    current_timestamp,
-    current_timestamp,
-    NULL,
-    id
-  FROM sections_to_copy_with_resolved_loop_source_and_item_type;
-
-  -- copy section fields
-  INSERT INTO section_fields (
-    title,
-    language,
-    description,
-    section_id,
-    created_at,
-    updated_at,
-    is_default_language,
-    tab_title
-  )
-  SELECT
-    title,
-    language,
-    description,
-    tmp_sections.id,
-    current_timestamp,
-    current_timestamp,
-    is_default_language,
-    tab_title
-  FROM section_fields t
-  JOIN tmp_sections
-  ON tmp_sections.original_id = t.section_id;
-END;
-$$;
-
-
---
--- Name: copy_text_answers_to_tmp(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION copy_text_answers_to_tmp(in_questionnaire_id integer) RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH text_answers_to_copy AS (
-    SELECT * FROM questionnaire_answer_types(in_questionnaire_id, 'TextAnswer')
-  )
-  INSERT INTO tmp_text_answers (
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    current_timestamp,
-    current_timestamp,
-    text_answers.id
-  FROM text_answers
-  JOIN text_answers_to_copy t
-  ON t.answer_type_id = text_answers.id;
-
-  INSERT INTO tmp_text_answer_fields (
-    text_answer_id,
-    rows,
-    width,
-    created_at,
-    updated_at,
-    original_id
-  )
-  SELECT
-    tmp_text_answers.id,
-    rows,
-    width,
-    tmp_text_answers.created_at,
-    tmp_text_answers.updated_at,
-    t.id
-  FROM text_answer_fields t
-  JOIN tmp_text_answers
-  ON tmp_text_answers.original_id = t.text_answer_id;
-
-  RETURN;
-END;
-$$;
-
-
---
--- Name: questionnaire_answer_types(integer, text); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION questionnaire_answer_types(in_questionnaire_id integer, in_answer_type text) RETURNS SETOF answer_type
-    LANGUAGE sql
-    AS $$
-  WITH questionnaire_parts_to_copy AS (
-    SELECT * FROM questionnaire_parts_with_descendents(in_questionnaire_id)
-  )
-  SELECT answer_type_id, in_answer_type FROM (
-    SELECT answer_type_id
-    FROM sections
-    JOIN questionnaire_parts_to_copy t
-    ON t.part_type = 'Section' AND t.part_id = sections.id
-    WHERE sections.answer_type_type = in_answer_type
-    UNION
-    SELECT answer_type_id
-    FROM questions
-    JOIN questionnaire_parts_to_copy t
-    ON t.part_type = 'Question' AND t.part_id = questions.id
-    WHERE questions.answer_type_type = in_answer_type
-  ) t
-  GROUP BY answer_type_id
-$$;
-
-
-SET default_tablespace = '';
-
-SET default_with_oids = false;
-
---
--- Name: questionnaire_parts; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE questionnaire_parts (
-    id integer NOT NULL,
-    questionnaire_id integer,
-    part_id integer,
-    part_type character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    parent_id integer,
-    lft integer,
-    rgt integer,
-    original_id integer
-);
-
-
---
--- Name: questionnaire_parts_with_descendents(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION questionnaire_parts_with_descendents(in_questionnaire_id integer) RETURNS SETOF questionnaire_parts
-    LANGUAGE sql
-    AS $$
-  WITH RECURSIVE questionnaire_parts_with_descendents AS (
-    SELECT questionnaire_parts.* FROM questionnaire_parts
-    WHERE questionnaire_parts.questionnaire_id = in_questionnaire_id
-    UNION
-    SELECT hi.* FROM questionnaire_parts hi
-    JOIN questionnaire_parts_with_descendents h ON h.id = hi.parent_id
-  )
-  SELECT * FROM questionnaire_parts_with_descendents;
-$$;
-
-
---
--- Name: questions; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE questions (
-    id integer NOT NULL,
-    uidentifier character varying(255),
-    type integer,
-    last_edited timestamp without time zone,
-    number integer,
-    section_id integer,
-    answer_type_id integer,
-    answer_type_type character varying(255) DEFAULT NULL::character varying,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    is_mandatory boolean DEFAULT false,
-    ordering integer,
-    allow_attachments boolean DEFAULT true,
-    original_id integer
-);
-
-
---
--- Name: questionnaire_questions(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION questionnaire_questions(in_questionnaire_id integer) RETURNS SETOF questions
-    LANGUAGE sql
-    AS $$
-
-  WITH question_parts AS (
-    SELECT * FROM questionnaire_parts_with_descendents(in_questionnaire_id)
-    WHERE part_type = 'Question'
-  )
-  SELECT questions.*
-  FROM question_parts
-  JOIN questions ON questions.id = part_id
-$$;
-
-
---
--- Name: sections; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE sections (
-    id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    last_edited timestamp without time zone,
-    section_type integer,
-    answer_type_id integer,
-    answer_type_type character varying(255) DEFAULT NULL::character varying,
-    loop_source_id integer,
-    loop_item_type_id integer,
-    depends_on_option_id integer,
-    depends_on_option_value boolean DEFAULT true,
-    depends_on_question_id integer,
-    is_hidden boolean DEFAULT false,
-    starts_collapsed boolean DEFAULT false,
-    display_in_tab boolean DEFAULT false,
-    original_id integer,
-    deleted boolean DEFAULT false
-);
-
-
---
--- Name: questionnaire_sections(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION questionnaire_sections(in_questionnaire_id integer) RETURNS SETOF sections
-    LANGUAGE sql
-    AS $$
-
-  WITH section_parts AS (
-    SELECT * FROM questionnaire_parts_with_descendents(in_questionnaire_id)
-    WHERE part_type = 'Section'
-  )
-  SELECT sections.*
-  FROM section_parts
-  JOIN sections ON sections.id = part_id
-$$;
-
-
---
--- Name: resolve_dependent_question_in_copied_sections(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION resolve_dependent_question_in_copied_sections() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-  WITH copied_multi_answer_options AS (
-    SELECT multi_answer_options.* FROM multi_answer_options
-    JOIN tmp_multi_answers
-    ON multi_answer_options.multi_answer_id = tmp_multi_answers.id
-  ), copied_sections_with_resolved_dependent_question AS (
-    SELECT tmp_sections.*,
-    tmp_questions.id AS new_depends_on_question_id,
-    copied_multi_answer_options.id AS new_depends_on_option_id
-    FROM tmp_sections
-    JOIN tmp_questions
-    ON tmp_questions.original_id = tmp_sections.depends_on_question_id
-    JOIN copied_multi_answer_options
-    ON copied_multi_answer_options.original_id = tmp_sections.depends_on_option_id
-  )
-  UPDATE tmp_sections
-  SET depends_on_question_id = new_depends_on_question_id,
-  depends_on_option_id = new_depends_on_option_id
-  FROM copied_sections_with_resolved_dependent_question
-  WHERE copied_sections_with_resolved_dependent_question.id = tmp_sections.id;
-END;
-$$;
-
-
---
 -- Name: squish(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -2058,6 +84,10 @@ CREATE FUNCTION strip_tags(text) RETURNS text
 COMMENT ON FUNCTION strip_tags(text) IS 'Strips html tags from string using a regexp.';
 
 
+SET default_tablespace = '';
+
+SET default_with_oids = false;
+
 --
 -- Name: alerts; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
@@ -2066,8 +96,8 @@ CREATE TABLE alerts (
     id integer NOT NULL,
     deadline_id integer NOT NULL,
     reminder_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2100,8 +130,8 @@ CREATE TABLE answer_links (
     description text,
     title character varying(255),
     answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2132,8 +162,8 @@ CREATE TABLE answer_part_matrix_options (
     id integer NOT NULL,
     answer_part_id integer,
     matrix_answer_option_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     answer_text text,
     matrix_answer_drop_option_id integer
 );
@@ -2166,8 +196,8 @@ CREATE TABLE answer_parts (
     id integer NOT NULL,
     answer_text text,
     answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     field_type_type character varying(255),
     field_type_id integer,
     details_text text,
@@ -2205,8 +235,8 @@ CREATE TABLE answer_type_fields (
     id integer NOT NULL,
     language character varying(255),
     help_text text,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false,
     answer_type_type character varying(255),
     answer_type_id integer
@@ -2240,8 +270,8 @@ CREATE TABLE answers (
     id integer NOT NULL,
     user_id integer,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     other_text text,
     question_id integer,
     looping_identifier character varying(255),
@@ -2273,6 +303,61 @@ ALTER SEQUENCE answers_id_seq OWNED BY answers.id;
 
 
 --
+-- Name: multi_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE multi_answer_option_fields (
+    id integer NOT NULL,
+    language character varying(255),
+    option_text text,
+    multi_answer_option_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    is_default_language boolean DEFAULT false
+);
+
+
+--
+-- Name: multi_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE multi_answer_options (
+    id integer NOT NULL,
+    multi_answer_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    details_field boolean DEFAULT false,
+    sort_index integer DEFAULT 0 NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: api_multi_answer_options_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_multi_answer_options_view AS
+ WITH mao_lngs AS (
+         SELECT maof_1.multi_answer_option_id,
+            array_agg(upper((maof_1.language)::text)) AS languages
+           FROM multi_answer_option_fields maof_1
+          WHERE (squish_null(maof_1.option_text) IS NOT NULL)
+          GROUP BY maof_1.multi_answer_option_id
+        )
+ SELECT mao.id,
+    mao.multi_answer_id,
+    mao.sort_index,
+    maof.option_text,
+    upper((maof.language)::text) AS language,
+    maof.is_default_language,
+    mao_lngs.languages
+   FROM ((multi_answer_options mao
+     JOIN multi_answer_option_fields maof ON ((maof.multi_answer_option_id = mao.id)))
+     JOIN mao_lngs ON ((mao_lngs.multi_answer_option_id = mao.id)))
+  WHERE (squish_null(maof.option_text) IS NOT NULL);
+
+
+--
 -- Name: questionnaire_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -2281,8 +366,8 @@ CREATE TABLE questionnaire_fields (
     language character varying(255),
     title text,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     introductory_remarks text,
     is_default_language boolean DEFAULT false,
     email_subject character varying(255) DEFAULT '---
@@ -2300,8 +385,8 @@ CREATE TABLE questionnaire_fields (
 
 CREATE TABLE questionnaires (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     last_edited timestamp without time zone,
     user_id integer,
     last_editor_id integer,
@@ -2313,7 +398,7 @@ CREATE TABLE questionnaires (
     header_file_size integer,
     header_updated_at timestamp without time zone,
     status integer DEFAULT 0,
-    display_in_tab_max_level character varying(255) DEFAULT 3,
+    display_in_tab_max_level character varying(255) DEFAULT '3'::character varying,
     delegation_enabled boolean DEFAULT true,
     help_pages character varying(255),
     translator_visible boolean DEFAULT false,
@@ -2369,9 +454,49 @@ CREATE TABLE question_fields (
     short_title character varying(255),
     description text,
     question_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false
+);
+
+
+--
+-- Name: questionnaire_parts; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE questionnaire_parts (
+    id integer NOT NULL,
+    questionnaire_id integer,
+    part_id integer,
+    part_type character varying(255),
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    parent_id integer,
+    lft integer,
+    rgt integer,
+    original_id integer
+);
+
+
+--
+-- Name: questions; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE questions (
+    id integer NOT NULL,
+    uidentifier character varying(255),
+    type integer,
+    last_edited timestamp without time zone,
+    number integer,
+    section_id integer,
+    answer_type_id integer,
+    answer_type_type character varying(255),
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    is_mandatory boolean DEFAULT false,
+    ordering integer,
+    allow_attachments boolean DEFAULT true,
+    original_id integer
 );
 
 
@@ -2409,6 +534,60 @@ CREATE VIEW api_questions_view AS
 
 
 --
+-- Name: range_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE range_answer_option_fields (
+    id integer NOT NULL,
+    range_answer_option_id integer,
+    option_text character varying(255),
+    language character varying(255),
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    is_default_language boolean
+);
+
+
+--
+-- Name: range_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE range_answer_options (
+    id integer NOT NULL,
+    range_answer_id integer,
+    sort_index integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: api_range_answer_options_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_range_answer_options_view AS
+ WITH rao_lngs AS (
+         SELECT raof_1.range_answer_option_id,
+            array_agg(upper((raof_1.language)::text)) AS languages
+           FROM range_answer_option_fields raof_1
+          WHERE (squish_null((raof_1.option_text)::text) IS NOT NULL)
+          GROUP BY raof_1.range_answer_option_id
+        )
+ SELECT rao.id,
+    rao.range_answer_id,
+    rao.sort_index,
+    raof.option_text,
+    upper((raof.language)::text) AS language,
+    raof.is_default_language,
+    rao_lngs.languages
+   FROM ((range_answer_options rao
+     JOIN range_answer_option_fields raof ON ((raof.range_answer_option_id = rao.id)))
+     JOIN rao_lngs ON ((rao_lngs.range_answer_option_id = rao.id)))
+  WHERE (squish_null((raof.option_text)::text) IS NOT NULL);
+
+
+--
 -- Name: section_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -2418,10 +597,34 @@ CREATE TABLE section_fields (
     language character varying(255),
     description text,
     section_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_default_language boolean DEFAULT false,
     tab_title text
+);
+
+
+--
+-- Name: sections; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE sections (
+    id integer NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    last_edited timestamp without time zone,
+    section_type integer,
+    answer_type_id integer,
+    answer_type_type character varying(255),
+    loop_source_id integer,
+    loop_item_type_id integer,
+    depends_on_option_id integer,
+    depends_on_option_value boolean DEFAULT true,
+    depends_on_question_id integer,
+    is_hidden boolean DEFAULT false,
+    starts_collapsed boolean DEFAULT false,
+    display_in_tab boolean DEFAULT false,
+    original_id integer
 );
 
 
@@ -2464,13 +667,12 @@ CREATE VIEW api_sections_view AS
 
 CREATE VIEW api_sections_tree_view AS
  WITH RECURSIVE section_qparts_with_descendents AS (
-         SELECT h.id AS qp_id,
-            h.questionnaire_id,
-            h.part_id,
-            h.part_type,
+         SELECT h.questionnaire_id,
+            h.id AS qp_id,
             h.parent_id AS qp_parent_id,
             ARRAY[s.title] AS path,
             s.id,
+            NULL::integer AS parent_id,
             s.section_type,
             s.loop_source_id,
             s.loop_item_type_id,
@@ -2486,18 +688,17 @@ CREATE VIEW api_sections_tree_view AS
             s.languages
            FROM (questionnaire_parts h
              JOIN api_sections_view s ON (((h.part_id = s.id) AND ((h.part_type)::text = 'Section'::text))))
-          WHERE (h.questionnaire_id IS NOT NULL)
+          WHERE (h.parent_id IS NULL)
         UNION
-         SELECT hi.id AS qp_id,
-            h.questionnaire_id,
-            hi.part_id,
-            hi.part_type,
+         SELECT h.questionnaire_id,
+            hi.id AS qp_id,
             hi.parent_id AS qp_parent_id,
             (h.path || ARRAY[s.title]),
             s.id,
+            h.id AS parent_id,
             s.section_type,
             s.loop_source_id,
-            s.loop_item_type_id,
+            COALESCE(s.loop_item_type_id, h.loop_item_type_id) AS "coalesce",
             s.depends_on_question_id,
             s.depends_on_option_id,
             s.depends_on_option_value,
@@ -2512,13 +713,12 @@ CREATE VIEW api_sections_tree_view AS
              JOIN api_sections_view s ON (((hi.part_id = s.id) AND ((hi.part_type)::text = 'Section'::text))))
              JOIN section_qparts_with_descendents h ON (((h.qp_id = hi.parent_id) AND (h.language = s.language))))
         )
- SELECT qp.qp_id,
-    qp.questionnaire_id,
-    qp.part_id,
-    qp.part_type,
+ SELECT qp.questionnaire_id,
+    qp.qp_id,
     qp.qp_parent_id,
     qp.path,
     qp.id,
+    qp.parent_id,
     qp.section_type,
     qp.loop_source_id,
     qp.loop_item_type_id,
@@ -2540,6 +740,19 @@ CREATE VIEW api_sections_tree_view AS
 --
 
 CREATE VIEW api_questions_tree_view AS
+ WITH mao_options AS (
+         SELECT mao.multi_answer_id,
+            mao.language,
+            array_agg(mao.option_text ORDER BY mao.sort_index) AS options
+           FROM api_multi_answer_options_view mao
+          GROUP BY mao.multi_answer_id, mao.language
+        ), rao_options AS (
+         SELECT rao.range_answer_id,
+            rao.language,
+            array_agg(rao.option_text ORDER BY rao.sort_index) AS options
+           FROM api_range_answer_options_view rao
+          GROUP BY rao.range_answer_id, rao.language
+        )
  SELECT q.id,
     q.type,
     q.number,
@@ -2567,9 +780,12 @@ CREATE VIEW api_questions_tree_view AS
     s.tab_title AS section_tab_title,
     s.language AS section_language,
     s.is_default_language AS section_is_default_language,
-    s.path
-   FROM (api_questions_view q
-     JOIN api_sections_tree_view s ON (((q.section_id = s.id) AND ((q.language = s.language) OR (s.is_default_language AND (NOT (s.languages @> ARRAY[q.language])))))));
+    s.path,
+    COALESCE(mao_options.options, (rao_options.options)::text[]) AS options
+   FROM (((api_questions_view q
+     JOIN api_sections_tree_view s ON (((q.section_id = s.id) AND ((q.language = s.language) OR (s.is_default_language AND (NOT (s.languages @> ARRAY[q.language])))))))
+     LEFT JOIN mao_options ON ((mao_options.multi_answer_id = q.answer_type_id)))
+     LEFT JOIN rao_options ON ((rao_options.range_answer_id = q.answer_type_id)));
 
 
 --
@@ -2580,8 +796,8 @@ CREATE TABLE authorized_submitters (
     id integer NOT NULL,
     user_id integer,
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     status integer DEFAULT 0,
     language character varying(255) DEFAULT 'en'::character varying,
     total_questions integer DEFAULT 0,
@@ -2600,8 +816,8 @@ CREATE TABLE users (
     persistence_token character varying(255) NOT NULL,
     crypted_password character varying(255) NOT NULL,
     password_salt character varying(255) NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     login_count integer DEFAULT 0 NOT NULL,
     failed_login_count integer DEFAULT 0 NOT NULL,
     last_request_at timestamp without time zone,
@@ -2685,8 +901,8 @@ CREATE TABLE assignments (
     id integer NOT NULL,
     user_id integer NOT NULL,
     role_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2736,8 +952,8 @@ CREATE TABLE csv_files (
     id integer NOT NULL,
     name character varying(255),
     location character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     entity_type character varying(255),
     entity_id integer
 );
@@ -2772,8 +988,8 @@ CREATE TABLE deadlines (
     soft_deadline boolean DEFAULT false,
     due_date timestamp without time zone,
     questionnaire_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -2836,8 +1052,8 @@ ALTER SEQUENCE delegate_text_answers_id_seq OWNED BY delegate_text_answers.id;
 CREATE TABLE delegated_loop_item_names (
     id integer NOT NULL,
     loop_item_name_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     delegation_section_id integer
 );
 
@@ -2869,8 +1085,8 @@ CREATE TABLE delegation_sections (
     id integer NOT NULL,
     delegation_id integer,
     section_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -2900,8 +1116,8 @@ ALTER SEQUENCE delegation_sections_id_seq OWNED BY delegation_sections.id;
 
 CREATE TABLE delegations (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     remarks text,
     questionnaire_id integer,
     user_delegate_id integer,
@@ -2941,8 +1157,8 @@ CREATE TABLE documents (
     doc_content_type character varying(255),
     doc_file_size integer,
     doc_updated_at timestamp without time zone,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     description text,
     original_id integer
 );
@@ -2975,8 +1191,8 @@ CREATE TABLE extras (
     id integer NOT NULL,
     name character varying(255),
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     field_type integer,
     original_id integer
 );
@@ -3009,8 +1225,8 @@ CREATE TABLE filtering_fields (
     id integer NOT NULL,
     name character varying(255),
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3044,8 +1260,8 @@ CREATE TABLE item_extra_fields (
     language character varying(255) DEFAULT 'en'::character varying,
     value character varying(255),
     is_default_language boolean DEFAULT false,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3076,8 +1292,8 @@ CREATE TABLE item_extras (
     id integer NOT NULL,
     loop_item_name_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3111,8 +1327,8 @@ CREATE TABLE loop_item_name_fields (
     item_name character varying(255),
     is_default_language boolean,
     loop_item_name_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3143,8 +1359,8 @@ CREATE TABLE loop_item_names (
     id integer NOT NULL,
     loop_source_id integer,
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3179,8 +1395,8 @@ CREATE TABLE loop_item_types (
     lft integer,
     rgt integer,
     loop_source_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     filtering_field_id integer,
     original_id integer
 );
@@ -3214,8 +1430,8 @@ CREATE TABLE loop_items (
     parent_id integer,
     lft integer,
     rgt integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     loop_item_type_id integer,
     sort_index integer DEFAULT 0,
     loop_item_name_id integer,
@@ -3250,8 +1466,8 @@ CREATE TABLE loop_sources (
     id integer NOT NULL,
     name character varying(255),
     questionnaire_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3276,72 +1492,6 @@ ALTER SEQUENCE loop_sources_id_seq OWNED BY loop_sources.id;
 
 
 --
--- Name: matrix_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE matrix_answer_option_fields (
-    id integer NOT NULL,
-    matrix_answer_option_id integer,
-    language character varying(255),
-    title text,
-    is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
-);
-
-
---
--- Name: matrix_answer_column_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_column_fields_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_column_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_column_fields_id_seq OWNED BY matrix_answer_option_fields.id;
-
-
---
--- Name: matrix_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE matrix_answer_options (
-    id integer NOT NULL,
-    matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    original_id integer
-);
-
-
---
--- Name: matrix_answer_columns_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_columns_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_columns_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_columns_id_seq OWNED BY matrix_answer_options.id;
-
-
---
 -- Name: matrix_answer_drop_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -3351,8 +1501,8 @@ CREATE TABLE matrix_answer_drop_option_fields (
     language character varying(255),
     is_default_language boolean,
     option_text character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3382,8 +1532,8 @@ ALTER SEQUENCE matrix_answer_drop_option_fields_id_seq OWNED BY matrix_answer_dr
 CREATE TABLE matrix_answer_drop_options (
     id integer NOT NULL,
     matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3408,16 +1558,101 @@ ALTER SEQUENCE matrix_answer_drop_options_id_seq OWNED BY matrix_answer_drop_opt
 
 
 --
+-- Name: matrix_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE matrix_answer_option_fields (
+    id integer NOT NULL,
+    matrix_answer_option_id integer,
+    language character varying(255),
+    title text,
+    is_default_language boolean,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: matrix_answer_option_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_option_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_option_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_option_fields_id_seq OWNED BY matrix_answer_option_fields.id;
+
+
+--
+-- Name: matrix_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE matrix_answer_options (
+    id integer NOT NULL,
+    matrix_answer_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: matrix_answer_options_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_options_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_options_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_options_id_seq OWNED BY matrix_answer_options.id;
+
+
+--
 -- Name: matrix_answer_queries; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
 CREATE TABLE matrix_answer_queries (
     id integer NOT NULL,
     matrix_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
+
+
+--
+-- Name: matrix_answer_queries_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE matrix_answer_queries_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: matrix_answer_queries_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE matrix_answer_queries_id_seq OWNED BY matrix_answer_queries.id;
 
 
 --
@@ -3430,16 +1665,16 @@ CREATE TABLE matrix_answer_query_fields (
     language character varying(255),
     title text,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
 --
--- Name: matrix_answer_row_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+-- Name: matrix_answer_query_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
-CREATE SEQUENCE matrix_answer_row_fields_id_seq
+CREATE SEQUENCE matrix_answer_query_fields_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3448,29 +1683,10 @@ CREATE SEQUENCE matrix_answer_row_fields_id_seq
 
 
 --
--- Name: matrix_answer_row_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+-- Name: matrix_answer_query_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
 --
 
-ALTER SEQUENCE matrix_answer_row_fields_id_seq OWNED BY matrix_answer_query_fields.id;
-
-
---
--- Name: matrix_answer_rows_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE matrix_answer_rows_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: matrix_answer_rows_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE matrix_answer_rows_id_seq OWNED BY matrix_answer_queries.id;
+ALTER SEQUENCE matrix_answer_query_fields_id_seq OWNED BY matrix_answer_query_fields.id;
 
 
 --
@@ -3480,8 +1696,8 @@ ALTER SEQUENCE matrix_answer_rows_id_seq OWNED BY matrix_answer_queries.id;
 CREATE TABLE matrix_answers (
     id integer NOT NULL,
     display_reply integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     matrix_orientation integer,
     original_id integer
 );
@@ -3507,21 +1723,6 @@ ALTER SEQUENCE matrix_answers_id_seq OWNED BY matrix_answers.id;
 
 
 --
--- Name: multi_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE multi_answer_option_fields (
-    id integer NOT NULL,
-    language character varying(255),
-    option_text text,
-    multi_answer_option_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    is_default_language boolean DEFAULT false
-);
-
-
---
 -- Name: multi_answer_option_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -3538,21 +1739,6 @@ CREATE SEQUENCE multi_answer_option_fields_id_seq
 --
 
 ALTER SEQUENCE multi_answer_option_fields_id_seq OWNED BY multi_answer_option_fields.id;
-
-
---
--- Name: multi_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE multi_answer_options (
-    id integer NOT NULL,
-    multi_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    details_field boolean DEFAULT false,
-    sort_index integer DEFAULT 0 NOT NULL,
-    original_id integer
-);
 
 
 --
@@ -3581,8 +1767,8 @@ ALTER SEQUENCE multi_answer_options_id_seq OWNED BY multi_answer_options.id;
 CREATE TABLE multi_answers (
     id integer NOT NULL,
     single boolean DEFAULT true,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     other_required boolean DEFAULT false,
     display_type integer,
     original_id integer
@@ -3616,8 +1802,8 @@ CREATE TABLE numeric_answers (
     id integer NOT NULL,
     max_value integer,
     min_value integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3651,8 +1837,8 @@ CREATE TABLE other_fields (
     other_text text,
     multi_answer_id integer,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3685,8 +1871,8 @@ CREATE TABLE pdf_files (
     user_id integer,
     name character varying(255),
     location character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     is_long boolean DEFAULT true
 );
 
@@ -3723,8 +1909,8 @@ CREATE TABLE persistent_errors (
     errorable_type character varying(255),
     errorable_id integer,
     user_ip character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3755,8 +1941,8 @@ CREATE TABLE question_extras (
     id integer NOT NULL,
     question_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3806,8 +1992,8 @@ CREATE TABLE question_loop_types (
     id integer NOT NULL,
     question_id integer,
     loop_item_type_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -3831,6 +2017,25 @@ ALTER SEQUENCE question_loop_types_id_seq OWNED BY question_loop_types.id;
 
 
 --
+-- Name: questionnaire_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE questionnaire_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: questionnaire_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE questionnaire_fields_id_seq OWNED BY questionnaire_fields.id;
+
+
+--
 -- Name: questionnaire_parts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -3847,6 +2052,25 @@ CREATE SEQUENCE questionnaire_parts_id_seq
 --
 
 ALTER SEQUENCE questionnaire_parts_id_seq OWNED BY questionnaire_parts.id;
+
+
+--
+-- Name: questionnaires_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE questionnaires_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: questionnaires_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE questionnaires_id_seq OWNED BY questionnaires.id;
 
 
 --
@@ -3869,21 +2093,6 @@ ALTER SEQUENCE questions_id_seq OWNED BY questions.id;
 
 
 --
--- Name: range_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE range_answer_option_fields (
-    id integer NOT NULL,
-    range_answer_option_id integer,
-    option_text character varying(255),
-    language character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    is_default_language boolean
-);
-
-
---
 -- Name: range_answer_option_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -3900,20 +2109,6 @@ CREATE SEQUENCE range_answer_option_fields_id_seq
 --
 
 ALTER SEQUENCE range_answer_option_fields_id_seq OWNED BY range_answer_option_fields.id;
-
-
---
--- Name: range_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE range_answer_options (
-    id integer NOT NULL,
-    range_answer_id integer,
-    sort_index integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
-    original_id integer
-);
 
 
 --
@@ -3941,8 +2136,8 @@ ALTER SEQUENCE range_answer_options_id_seq OWNED BY range_answer_options.id;
 
 CREATE TABLE range_answers (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -3976,8 +2171,8 @@ CREATE TABLE rank_answer_option_fields (
     language character varying(255),
     option_text text,
     is_default_language boolean,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -4007,8 +2202,8 @@ ALTER SEQUENCE rank_answer_option_fields_id_seq OWNED BY rank_answer_option_fiel
 CREATE TABLE rank_answer_options (
     id integer NOT NULL,
     rank_answer_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4039,8 +2234,8 @@ ALTER SEQUENCE rank_answer_options_id_seq OWNED BY rank_answer_options.id;
 CREATE TABLE rank_answers (
     id integer NOT NULL,
     maximum_choices integer DEFAULT (-1),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4072,8 +2267,8 @@ CREATE TABLE reminders (
     id integer NOT NULL,
     title character varying(255),
     body text,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     days integer
 );
 
@@ -4098,52 +2293,14 @@ ALTER SEQUENCE reminders_id_seq OWNED BY reminders.id;
 
 
 --
--- Name: report_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE report_fields_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: report_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE report_fields_id_seq OWNED BY questionnaire_fields.id;
-
-
---
--- Name: reports_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE reports_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE reports_id_seq OWNED BY questionnaires.id;
-
-
---
 -- Name: roles; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
 CREATE TABLE roles (
     id integer NOT NULL,
     name character varying(255),
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -4183,8 +2340,8 @@ CREATE TABLE section_extras (
     id integer NOT NULL,
     section_id integer,
     extra_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
 );
 
 
@@ -4256,8 +2413,8 @@ CREATE TABLE source_files (
     source_content_type character varying(255),
     source_file_size integer,
     source_updated_at timestamp without time zone,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     parse_status integer DEFAULT 0
 );
 
@@ -4354,8 +2511,8 @@ CREATE TABLE text_answer_fields (
     text_answer_id integer,
     rows integer,
     width integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4385,8 +2542,8 @@ ALTER SEQUENCE text_answer_fields_id_seq OWNED BY text_answer_fields.id;
 
 CREATE TABLE text_answers (
     id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     original_id integer
 );
 
@@ -4418,8 +2575,8 @@ CREATE TABLE user_delegates (
     id integer NOT NULL,
     user_id integer,
     delegate_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     state integer DEFAULT 0
 );
 
@@ -4450,11 +2607,30 @@ ALTER SEQUENCE user_delegates_id_seq OWNED BY user_delegates.id;
 CREATE TABLE user_filtering_fields (
     id integer NOT NULL,
     user_id integer,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     filtering_field_id integer,
     field_value character varying(255)
 );
+
+
+--
+-- Name: user_filtering_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE user_filtering_fields_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_filtering_fields_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE user_filtering_fields_id_seq OWNED BY user_filtering_fields.id;
 
 
 --
@@ -4464,8 +2640,8 @@ CREATE TABLE user_filtering_fields (
 CREATE TABLE user_section_submission_states (
     id integer NOT NULL,
     user_id integer NOT NULL,
-    created_at timestamp without time zone,
-    updated_at timestamp without time zone,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
     section_state integer DEFAULT 4,
     section_id integer,
     looping_identifier character varying(255),
@@ -4491,25 +2667,6 @@ CREATE SEQUENCE user_section_submission_states_id_seq
 --
 
 ALTER SEQUENCE user_section_submission_states_id_seq OWNED BY user_section_submission_states.id;
-
-
---
--- Name: user_user_characteristic_items_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE user_user_characteristic_items_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: user_user_characteristic_items_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE user_user_characteristic_items_id_seq OWNED BY user_filtering_fields.id;
 
 
 --
@@ -4724,28 +2881,28 @@ ALTER TABLE ONLY matrix_answer_drop_options ALTER COLUMN id SET DEFAULT nextval(
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_option_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_column_fields_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_option_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_option_fields_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_options ALTER COLUMN id SET DEFAULT nextval('matrix_answer_columns_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_options ALTER COLUMN id SET DEFAULT nextval('matrix_answer_options_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_queries ALTER COLUMN id SET DEFAULT nextval('matrix_answer_rows_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_queries ALTER COLUMN id SET DEFAULT nextval('matrix_answer_queries_id_seq'::regclass);
 
 
 --
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY matrix_answer_query_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_row_fields_id_seq'::regclass);
+ALTER TABLE ONLY matrix_answer_query_fields ALTER COLUMN id SET DEFAULT nextval('matrix_answer_query_fields_id_seq'::regclass);
 
 
 --
@@ -4829,7 +2986,7 @@ ALTER TABLE ONLY question_loop_types ALTER COLUMN id SET DEFAULT nextval('questi
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY questionnaire_fields ALTER COLUMN id SET DEFAULT nextval('report_fields_id_seq'::regclass);
+ALTER TABLE ONLY questionnaire_fields ALTER COLUMN id SET DEFAULT nextval('questionnaire_fields_id_seq'::regclass);
 
 
 --
@@ -4843,7 +3000,7 @@ ALTER TABLE ONLY questionnaire_parts ALTER COLUMN id SET DEFAULT nextval('questi
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY questionnaires ALTER COLUMN id SET DEFAULT nextval('reports_id_seq'::regclass);
+ALTER TABLE ONLY questionnaires ALTER COLUMN id SET DEFAULT nextval('questionnaires_id_seq'::regclass);
 
 
 --
@@ -4976,7 +3133,7 @@ ALTER TABLE ONLY user_delegates ALTER COLUMN id SET DEFAULT nextval('user_delega
 -- Name: id; Type: DEFAULT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY user_filtering_fields ALTER COLUMN id SET DEFAULT nextval('user_user_characteristic_items_id_seq'::regclass);
+ALTER TABLE ONLY user_filtering_fields ALTER COLUMN id SET DEFAULT nextval('user_filtering_fields_id_seq'::regclass);
 
 
 --
@@ -5194,22 +3351,6 @@ ALTER TABLE ONLY loop_sources
 
 
 --
--- Name: matrix_answer_column_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY matrix_answer_option_fields
-    ADD CONSTRAINT matrix_answer_column_fields_pkey PRIMARY KEY (id);
-
-
---
--- Name: matrix_answer_columns_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY matrix_answer_options
-    ADD CONSTRAINT matrix_answer_columns_pkey PRIMARY KEY (id);
-
-
---
 -- Name: matrix_answer_drop_option_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -5226,19 +3367,35 @@ ALTER TABLE ONLY matrix_answer_drop_options
 
 
 --
--- Name: matrix_answer_row_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+-- Name: matrix_answer_option_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
-ALTER TABLE ONLY matrix_answer_query_fields
-    ADD CONSTRAINT matrix_answer_row_fields_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY matrix_answer_option_fields
+    ADD CONSTRAINT matrix_answer_option_fields_pkey PRIMARY KEY (id);
 
 
 --
--- Name: matrix_answer_rows_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+-- Name: matrix_answer_options_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY matrix_answer_options
+    ADD CONSTRAINT matrix_answer_options_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: matrix_answer_queries_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY matrix_answer_queries
-    ADD CONSTRAINT matrix_answer_rows_pkey PRIMARY KEY (id);
+    ADD CONSTRAINT matrix_answer_queries_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: matrix_answer_query_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY matrix_answer_query_fields
+    ADD CONSTRAINT matrix_answer_query_fields_pkey PRIMARY KEY (id);
 
 
 --
@@ -5330,11 +3487,27 @@ ALTER TABLE ONLY question_loop_types
 
 
 --
+-- Name: questionnaire_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY questionnaire_fields
+    ADD CONSTRAINT questionnaire_fields_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: questionnaire_parts_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY questionnaire_parts
     ADD CONSTRAINT questionnaire_parts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: questionnaires_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY questionnaires
+    ADD CONSTRAINT questionnaires_pkey PRIMARY KEY (id);
 
 
 --
@@ -5399,22 +3572,6 @@ ALTER TABLE ONLY rank_answers
 
 ALTER TABLE ONLY reminders
     ADD CONSTRAINT reminders_pkey PRIMARY KEY (id);
-
-
---
--- Name: report_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY questionnaire_fields
-    ADD CONSTRAINT report_fields_pkey PRIMARY KEY (id);
-
-
---
--- Name: reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY questionnaires
-    ADD CONSTRAINT reports_pkey PRIMARY KEY (id);
 
 
 --
@@ -5498,19 +3655,19 @@ ALTER TABLE ONLY user_delegates
 
 
 --
+-- Name: user_filtering_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
+--
+
+ALTER TABLE ONLY user_filtering_fields
+    ADD CONSTRAINT user_filtering_fields_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: user_section_submission_states_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
 --
 
 ALTER TABLE ONLY user_section_submission_states
     ADD CONSTRAINT user_section_submission_states_pkey PRIMARY KEY (id);
-
-
---
--- Name: user_user_characteristic_items_pkey; Type: CONSTRAINT; Schema: public; Owner: -; Tablespace: 
---
-
-ALTER TABLE ONLY user_filtering_fields
-    ADD CONSTRAINT user_user_characteristic_items_pkey PRIMARY KEY (id);
 
 
 --
@@ -5918,442 +4075,6 @@ ALTER TABLE ONLY text_answers
 
 SET search_path TO "$user",public;
 
-INSERT INTO schema_migrations (version) VALUES ('20091216144240');
-
-INSERT INTO schema_migrations (version) VALUES ('20091216144402');
-
-INSERT INTO schema_migrations (version) VALUES ('20091216144524');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222095411');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222103517');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222113533');
-
-INSERT INTO schema_migrations (version) VALUES ('20091222120007');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104112543');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104112938');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104113218');
-
-INSERT INTO schema_migrations (version) VALUES ('20100104113347');
-
-INSERT INTO schema_migrations (version) VALUES ('20100115111120');
-
-INSERT INTO schema_migrations (version) VALUES ('20100115120146');
-
-INSERT INTO schema_migrations (version) VALUES ('20100119115933');
-
-INSERT INTO schema_migrations (version) VALUES ('20100201114144');
-
-INSERT INTO schema_migrations (version) VALUES ('20100201114344');
-
-INSERT INTO schema_migrations (version) VALUES ('20100205160659');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209140108');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209140354');
-
-INSERT INTO schema_migrations (version) VALUES ('20100209160251');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211140602');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145413');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145520');
-
-INSERT INTO schema_migrations (version) VALUES ('20100211145830');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215120114');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121456');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121858');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215121956');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215133753');
-
-INSERT INTO schema_migrations (version) VALUES ('20100215133945');
-
-INSERT INTO schema_migrations (version) VALUES ('20100216143218');
-
-INSERT INTO schema_migrations (version) VALUES ('20100219154557');
-
-INSERT INTO schema_migrations (version) VALUES ('20100219154943');
-
-INSERT INTO schema_migrations (version) VALUES ('20100223133152');
-
-INSERT INTO schema_migrations (version) VALUES ('20100223133640');
-
-INSERT INTO schema_migrations (version) VALUES ('20100224165830');
-
-INSERT INTO schema_migrations (version) VALUES ('20100224172312');
-
-INSERT INTO schema_migrations (version) VALUES ('20100226141323');
-
-INSERT INTO schema_migrations (version) VALUES ('20100301161929');
-
-INSERT INTO schema_migrations (version) VALUES ('20100302164229');
-
-INSERT INTO schema_migrations (version) VALUES ('20100303162825');
-
-INSERT INTO schema_migrations (version) VALUES ('20100311110216');
-
-INSERT INTO schema_migrations (version) VALUES ('20100312102233');
-
-INSERT INTO schema_migrations (version) VALUES ('20100315164848');
-
-INSERT INTO schema_migrations (version) VALUES ('20100315165036');
-
-INSERT INTO schema_migrations (version) VALUES ('20100318171938');
-
-INSERT INTO schema_migrations (version) VALUES ('20100322144930');
-
-INSERT INTO schema_migrations (version) VALUES ('20100324103935');
-
-INSERT INTO schema_migrations (version) VALUES ('20100325094844');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326135435');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326145544');
-
-INSERT INTO schema_migrations (version) VALUES ('20100326165258');
-
-INSERT INTO schema_migrations (version) VALUES ('20100329104409');
-
-INSERT INTO schema_migrations (version) VALUES ('20100330104949');
-
-INSERT INTO schema_migrations (version) VALUES ('20100331110046');
-
-INSERT INTO schema_migrations (version) VALUES ('20100331125616');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401123407');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401141952');
-
-INSERT INTO schema_migrations (version) VALUES ('20100401144211');
-
-INSERT INTO schema_migrations (version) VALUES ('20100415170751');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416125531');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416154208');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416154452');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416155223');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416155613');
-
-INSERT INTO schema_migrations (version) VALUES ('20100416160303');
-
-INSERT INTO schema_migrations (version) VALUES ('20100419143617');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420132443');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420163657');
-
-INSERT INTO schema_migrations (version) VALUES ('20100420164759');
-
-INSERT INTO schema_migrations (version) VALUES ('20100421140847');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422135900');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422142031');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422142208');
-
-INSERT INTO schema_migrations (version) VALUES ('20100422182458');
-
-INSERT INTO schema_migrations (version) VALUES ('20100423085339');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426092545');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426101145');
-
-INSERT INTO schema_migrations (version) VALUES ('20100426101739');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427093144');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427100139');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427120953');
-
-INSERT INTO schema_migrations (version) VALUES ('20100427140847');
-
-INSERT INTO schema_migrations (version) VALUES ('20100428091102');
-
-INSERT INTO schema_migrations (version) VALUES ('20100428095425');
-
-INSERT INTO schema_migrations (version) VALUES ('20100429151708');
-
-INSERT INTO schema_migrations (version) VALUES ('20100429170035');
-
-INSERT INTO schema_migrations (version) VALUES ('20100505130819');
-
-INSERT INTO schema_migrations (version) VALUES ('20100511164615');
-
-INSERT INTO schema_migrations (version) VALUES ('20100511164913');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512092930');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512095121');
-
-INSERT INTO schema_migrations (version) VALUES ('20100512102616');
-
-INSERT INTO schema_migrations (version) VALUES ('20100513082553');
-
-INSERT INTO schema_migrations (version) VALUES ('20100513083252');
-
-INSERT INTO schema_migrations (version) VALUES ('20100514105446');
-
-INSERT INTO schema_migrations (version) VALUES ('20100517160925');
-
-INSERT INTO schema_migrations (version) VALUES ('20100518161109');
-
-INSERT INTO schema_migrations (version) VALUES ('20100524112251');
-
-INSERT INTO schema_migrations (version) VALUES ('20100524152242');
-
-INSERT INTO schema_migrations (version) VALUES ('20100526132834');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527094259');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527095733');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527173427');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527173812');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527174001');
-
-INSERT INTO schema_migrations (version) VALUES ('20100527174201');
-
-INSERT INTO schema_migrations (version) VALUES ('20100528145112');
-
-INSERT INTO schema_migrations (version) VALUES ('20100601082947');
-
-INSERT INTO schema_migrations (version) VALUES ('20100601083339');
-
-INSERT INTO schema_migrations (version) VALUES ('20100602141114');
-
-INSERT INTO schema_migrations (version) VALUES ('20100604085246');
-
-INSERT INTO schema_migrations (version) VALUES ('20100604112256');
-
-INSERT INTO schema_migrations (version) VALUES ('20100712140227');
-
-INSERT INTO schema_migrations (version) VALUES ('20100712140809');
-
-INSERT INTO schema_migrations (version) VALUES ('20100713105341');
-
-INSERT INTO schema_migrations (version) VALUES ('20100714105006');
-
-INSERT INTO schema_migrations (version) VALUES ('20100719144332');
-
-INSERT INTO schema_migrations (version) VALUES ('20100720085022');
-
-INSERT INTO schema_migrations (version) VALUES ('20100720111356');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726082933');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726161853');
-
-INSERT INTO schema_migrations (version) VALUES ('20100726163827');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727154002');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727155257');
-
-INSERT INTO schema_migrations (version) VALUES ('20100727155513');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728144512');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728150553');
-
-INSERT INTO schema_migrations (version) VALUES ('20100728150715');
-
-INSERT INTO schema_migrations (version) VALUES ('20100803145618');
-
-INSERT INTO schema_migrations (version) VALUES ('20100803161914');
-
-INSERT INTO schema_migrations (version) VALUES ('20100804093414');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806085832');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806093819');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806094510');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806095439');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806101543');
-
-INSERT INTO schema_migrations (version) VALUES ('20100806142439');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902101424');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902105340');
-
-INSERT INTO schema_migrations (version) VALUES ('20100902110423');
-
-INSERT INTO schema_migrations (version) VALUES ('20100909104358');
-
-INSERT INTO schema_migrations (version) VALUES ('20100910075840');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914103345');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914103555');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914160219');
-
-INSERT INTO schema_migrations (version) VALUES ('20100914161105');
-
-INSERT INTO schema_migrations (version) VALUES ('20100915090421');
-
-INSERT INTO schema_migrations (version) VALUES ('20100915093550');
-
-INSERT INTO schema_migrations (version) VALUES ('20100916111650');
-
-INSERT INTO schema_migrations (version) VALUES ('20100917085804');
-
-INSERT INTO schema_migrations (version) VALUES ('20100921113333');
-
-INSERT INTO schema_migrations (version) VALUES ('20100921155104');
-
-INSERT INTO schema_migrations (version) VALUES ('20100922103307');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923093050');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923110454');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140846');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140909');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923140951');
-
-INSERT INTO schema_migrations (version) VALUES ('20100923141655');
-
-INSERT INTO schema_migrations (version) VALUES ('20100927140118');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929092844');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929101351');
-
-INSERT INTO schema_migrations (version) VALUES ('20100929101405');
-
-INSERT INTO schema_migrations (version) VALUES ('20100930085508');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004144844');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165635');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165709');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165739');
-
-INSERT INTO schema_migrations (version) VALUES ('20101004165813');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005094213');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005094821');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005095212');
-
-INSERT INTO schema_migrations (version) VALUES ('20101005100721');
-
-INSERT INTO schema_migrations (version) VALUES ('20101007111558');
-
-INSERT INTO schema_migrations (version) VALUES ('20101012092449');
-
-INSERT INTO schema_migrations (version) VALUES ('20101012122314');
-
-INSERT INTO schema_migrations (version) VALUES ('20101013160101');
-
-INSERT INTO schema_migrations (version) VALUES ('20101013160216');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154058');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154329');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014154431');
-
-INSERT INTO schema_migrations (version) VALUES ('20101014182545');
-
-INSERT INTO schema_migrations (version) VALUES ('20101015142219');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020153730');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020154254');
-
-INSERT INTO schema_migrations (version) VALUES ('20101020160734');
-
-INSERT INTO schema_migrations (version) VALUES ('20101026120732');
-
-INSERT INTO schema_migrations (version) VALUES ('20101026132818');
-
-INSERT INTO schema_migrations (version) VALUES ('20101027163423');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029094255');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029094851');
-
-INSERT INTO schema_migrations (version) VALUES ('20101029100120');
-
-INSERT INTO schema_migrations (version) VALUES ('20101101121253');
-
-INSERT INTO schema_migrations (version) VALUES ('20101109094231');
-
-INSERT INTO schema_migrations (version) VALUES ('20110218154148');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223100045');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223104446');
-
-INSERT INTO schema_migrations (version) VALUES ('20110223162819');
-
-INSERT INTO schema_migrations (version) VALUES ('20110503094739');
-
-INSERT INTO schema_migrations (version) VALUES ('20110520085745');
-
-INSERT INTO schema_migrations (version) VALUES ('20110607090547');
-
-INSERT INTO schema_migrations (version) VALUES ('20110607151214');
-
-INSERT INTO schema_migrations (version) VALUES ('20110621154201');
-
-INSERT INTO schema_migrations (version) VALUES ('20110621154323');
-
-INSERT INTO schema_migrations (version) VALUES ('20110708100848');
-
-INSERT INTO schema_migrations (version) VALUES ('20110721160737');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725095224');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725100948');
-
-INSERT INTO schema_migrations (version) VALUES ('20110725114346');
-
-INSERT INTO schema_migrations (version) VALUES ('20110729145916');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803104501');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803130724');
-
-INSERT INTO schema_migrations (version) VALUES ('20110803133253');
-
-INSERT INTO schema_migrations (version) VALUES ('20110804102726');
-
-INSERT INTO schema_migrations (version) VALUES ('20110823101719');
-
-INSERT INTO schema_migrations (version) VALUES ('20110922143443');
-
-INSERT INTO schema_migrations (version) VALUES ('20110923133020');
-
 INSERT INTO schema_migrations (version) VALUES ('20120116135431');
 
 INSERT INTO schema_migrations (version) VALUES ('20120116135432');
@@ -6361,8 +4082,6 @@ INSERT INTO schema_migrations (version) VALUES ('20120116135432');
 INSERT INTO schema_migrations (version) VALUES ('20130730164507');
 
 INSERT INTO schema_migrations (version) VALUES ('20130905092258');
-
-INSERT INTO schema_migrations (version) VALUES ('20130906113219');
 
 INSERT INTO schema_migrations (version) VALUES ('20132906113219');
 

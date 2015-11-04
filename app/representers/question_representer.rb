@@ -15,4 +15,5 @@ class QuestionRepresenter < Roar::Decorator
   property :path
   property :answer_type_type, as: :type
   property :is_mandatory
+  property :options
 end
