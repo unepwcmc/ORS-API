@@ -19,5 +19,11 @@ window.Questionnaires = class Questionnaires
     for questionnaire in questionnaires
       questionnaire = questionnaire.questionnaire
       [respondents, submissions] = @questionnaire_helper.submission_percentage(questionnaire)
-      @$list_container.append('<li><a href="questionnaires/'+questionnaire.id+'">'+ questionnaire.title + '</a>' +
-        ' ( ' + submissions + '/' + respondents + ' submitted )</li>')
+      @$list_container.append(
+        """
+          <li>
+            <a href="questionnaires/#{questionnaire.id}">#{questionnaire.title}</a>
+            ( #{submissions}/#{respondents} submitted )
+          </li>
+        """
+      )

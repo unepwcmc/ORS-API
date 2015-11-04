@@ -3,14 +3,16 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     @$details_container, @$questions_container) ->
 
     @questionnaire_helper = new QuestionnaireHelper()
+    @questions_helper = new QuestionsHelper()
     @opts = @$container_el.find('li')
+    @questionnaire_id = @$container_el.data('questionnaire_id')
     @get_questionnaire_details()
+    @get_questions()
     @init_events()
 
   get_questionnaire_details: ->
-    questionnaire_id = @$container_el.data('questionnaire_id')
     $.ajax(
-      url: "/api/v1/questionnaires/#{questionnaire_id}"
+      url: "/api/v1/questionnaires/#{@questionnaire_id}"
       type: 'GET'
       dataType: 'json'
       contentType: 'text/plain'
@@ -19,17 +21,33 @@ window.QuestionnaireDetails = class QuestionnaireDetails
       error: (jqXHR, textStatus, errorThrown) ->
         @$container_el.append "AJAX Error: #{textStatus}"
       success: (data, textStatus, jqXHR) =>
-       @append_questionnaire_details(data.questionnaire)
+        @append_questionnaire_details(data.questionnaire)
+    )
+
+  get_questions: ->
+    $.ajax(
+      url: "/api/v1/questionnaires/{@questionnaire_id}/questions"
+      type: 'GET'
+      dataType: 'json'
+      contentType: 'text/plain'
+      beforeSend: (request) ->
+        request.setRequestHeader("X-Authentication-Token", 'QIrNAOBzbj64yMVbR8j')
+      error: (jqXHR, textStatus, errorThrown) ->
+        @$container_el.append "AJAX Error: {textStatus}"
+      success: (data, textStatus, jqXHR) =>
+       @append_questions_details(data)
     )
 
   append_questionnaire_details: (questionnaire) ->
     [respondents, submissions] = @questionnaire_helper.submission_percentage(questionnaire)
     @$details_container.find('.details-list').append(
-     '<li> <strong>Submission percentage:</strong> ' + submissions + '/' + respondents + '</li>' +
-     '<li> <strong>Language:</strong> ' + questionnaire.language + '</li>' +
-     '<li> <strong>Available languages:</strong> ' + questionnaire.languages + '</li>' +
-     '<li> <strong>Status:</strong> ' + questionnaire.status + '</li>' +
-     '<li> <strong>Created on:</strong> ' + questionnaire.questionnaire_date + '</li>'
+     """
+       <li><strong>Submission percentage: </strong>#{submissions}/#{respondents}</li>
+       <li><strong>Language: </strong>#{questionnaire.language}</li>
+       <li><strong>Available languages: </strong>#{questionnaire.languages}</li>
+       <li><strong>Status: </strong>#{questionnaire.status}</li>
+       <li><strong>Created on: </strong>#{questionnaire.questionnaire_date}</li>
+     """
     )
 
     respondents_table = @$details_container.find('.respondents-table > tbody')
@@ -42,11 +60,17 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     )
     for respondent in respondents
       respondent = respondent.respondent
-      respondents_table.append('<tr>' +
-        '<td>' + respondent.full_name + '</td>' +
-        '<td>' + respondent.status + '</td>' +
-        '</tr>'
+      respondents_table.append(
+        """
+          <tr>
+            <td>#{respondent.full_name}</td>
+            <td>#{respondent.status}</td>
+          </tr>
+        """
       )
+
+  append_questions_details: (questions) ->
+    @questions_helper.parse_questions(questions, @$questions_container)
 
   init_events: ->
     @$container_el.on('click', (event) ->
