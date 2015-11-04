@@ -1,0 +1,23 @@
+<ul class='details-list'>
+  <li><strong>Submission percentage: </strong>{{submissions}}/{{no_respondents}}</li>
+  <li><strong>Language: </strong>{{language}}</li>
+  <li><strong>Available languages: </strong>{{languages}}</li>
+  <li><strong>Status: </strong>{{status}}</li>
+  <li><strong>Created on: </strong>{{questionnaire_date}}</li>
+</ul>
+<table class='respondents-table'>
+  <thead>
+    <tr>
+      <th> Name </th>
+      <th> Status </th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each respondents}}
+      <tr>
+        <td>{{respondent.full_name}}</td>
+        <td>{{respondent.status}}</td>
+      </tr>
+    {{/each}}
+  </tbody>
+</table>

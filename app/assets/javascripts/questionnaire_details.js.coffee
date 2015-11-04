@@ -4,7 +4,6 @@ window.QuestionnaireDetails = class QuestionnaireDetails
 
     @questionnaire_helper = new QuestionnaireHelper()
     @questions_helper = new QuestionsHelper()
-    @opts = @$container_el.find('li')
     @questionnaire_id = @$container_el.data('questionnaire_id')
     @get_questionnaire_details()
     @get_questions()
@@ -40,45 +39,35 @@ window.QuestionnaireDetails = class QuestionnaireDetails
 
   append_questionnaire_details: (questionnaire) ->
     [respondents, submissions] = @questionnaire_helper.submission_percentage(questionnaire)
-    @$details_container.find('.details-list').append(
-     """
-       <li><strong>Submission percentage: </strong>#{submissions}/#{respondents}</li>
-       <li><strong>Language: </strong>#{questionnaire.language}</li>
-       <li><strong>Available languages: </strong>#{questionnaire.languages}</li>
-       <li><strong>Status: </strong>#{questionnaire.status}</li>
-       <li><strong>Created on: </strong>#{questionnaire.questionnaire_date}</li>
-     """
-    )
+    @sort_respondents(questionnaire.respondents)
+    $.extend(questionnaire,{submissions: submissions, no_respondents: respondents})
 
-    respondents_table = @$details_container.find('.respondents-table > tbody')
-    respondents =  questionnaire.respondents.sort( (a,b) ->
+    @$details_container.append(HandlebarsTemplates['questionnaire/details'](questionnaire))
+
+  sort_respondents: (respondents) ->
+    respondents.sort( (a,b) ->
       if a.respondent.full_name < b.respondent.full_name
         return -1
       else if a.respondent.full_name > b.respondent.full_name
         return 1
-      else return 0
+      return 0
     )
-    for respondent in respondents
-      respondent = respondent.respondent
-      respondents_table.append(
-        """
-          <tr>
-            <td>#{respondent.full_name}</td>
-            <td>#{respondent.status}</td>
-          </tr>
-        """
-      )
 
   append_questions_details: (questions) ->
     @questions_helper.parse_questions(questions, @$questions_container)
 
   init_events: ->
+    @tabs_selection()
+
+  tabs_selection: ->
     @$container_el.on('click', (event) ->
       event.preventDefault()
     )
 
+    opts = @$container_el.find('li')
     self = @
-    @opts.on('click', ->
+
+    opts.on('click', ->
       opt = $(this)
       if opt.hasClass("active")
         return
