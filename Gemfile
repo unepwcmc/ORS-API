@@ -38,6 +38,8 @@ gem 'authlogic', '~> 3.4.2'
 
 gem 'font-awesome-rails'
 
+gem 'handlebars_assets'
+
 group :staging, :production do
   gem 'dotenv-rails'
   gem 'exception_notification'
