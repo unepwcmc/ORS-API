@@ -4,6 +4,7 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
   represents :json, Questionnaire
   represents :xml, Questionnaire
   include QuestionnaireExamples
+  include Pagination
 
   api :GET, '/', 'List of questionnaires'
 
@@ -22,12 +23,6 @@ Information about the remaining pages is provided in the Link header of the API 
 If there are additional pages, the link header will contain the URL for the next page of results, followed by the URL for the last page of results. The Total-Count header shows the total number of objects returned for this call, regardless of pagination.
   EOS
 
-  param :page, String,
-    desc: 'Page number for paginated responses.',
-    required: false
-  param :per_page, String,
-    desc: 'How many objects returned per page for paginated responses (#{MAX_PER_PAGE} by default)',
-    required: false
   param :language, String,
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
@@ -63,16 +58,6 @@ EOS
         return_api_error("Invalid parameter format: #{param}", 400) and return
       end
     end
-  end
-
-  def validate_page_format
-    return true unless params[:page]
-    /\A\d+\Z/.match(params[:page])
-  end
-
-  def validate_per_page_format
-    return true unless params[:per_page]
-    /\A\d+\Z/.match(params[:per_page])
   end
 
   def permitted_params
