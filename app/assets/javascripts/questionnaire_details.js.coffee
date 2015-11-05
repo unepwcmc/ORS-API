@@ -3,10 +3,9 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     @$details_container, @$questions_container) ->
 
     @questionnaire_helper = new QuestionnaireHelper()
-    @questions_helper = new QuestionsHelper()
     @questionnaire_id = @$container_el.data('questionnaire_id')
     @get_questionnaire_details()
-    @get_questions()
+    new Questions(@$questions_container, @questionnaire_id)
     @init_events()
 
   get_questionnaire_details: ->
@@ -21,20 +20,6 @@ window.QuestionnaireDetails = class QuestionnaireDetails
         @$container_el.append "AJAX Error: #{textStatus}"
       success: (data, textStatus, jqXHR) =>
         @append_questionnaire_details(data.questionnaire)
-    )
-
-  get_questions: ->
-    $.ajax(
-      url: "/api/v1/questionnaires/{@questionnaire_id}/questions"
-      type: 'GET'
-      dataType: 'json'
-      contentType: 'text/plain'
-      beforeSend: (request) ->
-        request.setRequestHeader("X-Authentication-Token", 'QIrNAOBzbj64yMVbR8j')
-      error: (jqXHR, textStatus, errorThrown) ->
-        @$container_el.append "AJAX Error: {textStatus}"
-      success: (data, textStatus, jqXHR) =>
-       @append_questions_details(data)
     )
 
   append_questionnaire_details: (questionnaire) ->
@@ -52,9 +37,6 @@ window.QuestionnaireDetails = class QuestionnaireDetails
         return 1
       return 0
     )
-
-  append_questions_details: (questions) ->
-    @questions_helper.parse_questions(questions, @$questions_container)
 
   init_events: ->
     @tabs_selection()
