@@ -18,7 +18,10 @@ window.Question = class Question
 
   get_question: ->
     data = @question_data().question
-    $.extend(data, {grouped_responses: @group_responses_by_option(data)})
+    if data.type == "Numeric"
+      data
+    else
+      $.extend(data, {grouped_responses: @group_responses_by_option(data)})
 
   group_responses_by_option: (data) ->
     options = data.options

@@ -1,0 +1,16 @@
+<table class="responses-table">
+  <thead>
+    <tr>
+      <th class='title'>Respondent</th>
+      <th>Response</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each responses}}
+    <tr>
+      <td>{{response.respondent_name}}</td>
+      <td>{{response.answer}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
