@@ -1,0 +1,10 @@
+<div id="question_modal" class="modal-dialog">
+  <div>
+    <a href="#close" title="Close" class="close">X</a>
+    <h2>{{title}}</h2>
+    {{#if is_mandatory}}
+      <p> This question is mandatory </p>
+    {{/if}}
+    {{> question/_responses responses=grouped_responses}}
+  </div>
+</div>

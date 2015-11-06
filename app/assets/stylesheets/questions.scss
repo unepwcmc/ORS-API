@@ -15,28 +15,28 @@ table {
   left: 0;
   background: rgba(0,0,0,0.8);
   z-index: 99999;
-  opacity:0;
-  -webkit-transition: opacity 400ms ease-in;
-  -moz-transition: opacity 400ms ease-in;
-  transition: opacity 400ms ease-in;
+  opacity: 0;
   pointer-events: none;
 }
 
 .modal-dialog:target {
-  opacity:1;
+  opacity: 1;
   pointer-events: auto;
 }
 
 .modal-dialog > div {
-  width: 400px;
+  width: 1000px;
+  height: 600px;
   position: relative;
-  margin: 10% auto;
-  padding: 5px 20px 13px 20px;
+  margin: 5% auto;
+  padding: 15px 20px 13px 20px;
   border-radius: 10px;
   background: #fff;
-  background: -moz-linear-gradient(#fff, #999);
-  background: -webkit-linear-gradient(#fff, #999);
-  background: -o-linear-gradient(#fff, #999);
+  p {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 10px 0;
+  }
 }
 
 .close {
@@ -59,3 +59,24 @@ table {
 }
 
 .close:hover { background: #00d9ff; }
+
+div.tooltip {
+  position: relative;
+}
+
+div.tooltip ul {
+  display: none;
+  li { padding: 5px 0; }
+}
+
+.responses:hover ul {
+  display: block;
+  position: absolute;
+  bottom: 1em;
+  padding: 0.5em;
+  color: #000000;
+  background: #ebf4fb;
+  border: 0.1em solid #b7ddf2;
+  border-radius: 0.5em;
+  max-width: 10em;
+}
