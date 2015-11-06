@@ -1,5 +1,6 @@
 class Api::V1::QuestionsController < Api::V1::BaseController
   before_action :validate_params, only: [:index]
+  before_action :load_questionnaire, only: [:index]
   after_action only: [:index] { set_pagination_headers(:questions) }
   represents :json, Question
   represents :xml, Question
@@ -8,6 +9,7 @@ class Api::V1::QuestionsController < Api::V1::BaseController
   resource_description do
     formats ['JSON', 'XML']
     api_base_url 'api/v1/questionnaires'
+    resource_id 'questions'
     name 'Questions'
   end
 
@@ -17,7 +19,6 @@ class Api::V1::QuestionsController < Api::V1::BaseController
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
   def index
-    @questionnaire = Questionnaire.find(params[:questionnaire_id])
     @questions = @questionnaire.questions.with_language(@language).
       paginate(
         page: @page,
@@ -41,4 +42,5 @@ class Api::V1::QuestionsController < Api::V1::BaseController
   def permitted_params
     [:questionnaire_id, :page, :per_page, :language, :format]
   end
+
 end

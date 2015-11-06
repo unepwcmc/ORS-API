@@ -61,4 +61,12 @@ class Api::V1::BaseController < ApplicationController
     render json: { message: message }, status: code
   end
 
+  def load_questionnaire
+    @questionnaire = Questionnaire.where(id: params[:questionnaire_id]).with_language(@language).first
+    unless @questionnaire
+      head status: :not_found and return false
+    end
+  end
+
+
 end
