@@ -103,6 +103,11 @@ GEM
       railties (>= 3.2, < 5.0)
     globalid (0.3.6)
       activesupport (>= 4.1.0)
+    handlebars_assets (0.19.1)
+      execjs (>= 1.2.9)
+      multi_json
+      sprockets (>= 2.0.3)
+      tilt
     i18n (0.7.0)
     jquery-rails (4.0.5)
       rails-dom-testing (~> 1.0)
@@ -115,7 +120,7 @@ GEM
       mime-types (>= 1.16, < 3)
     mime-types (2.6.2)
     mini_portile (0.6.2)
-    minitest (5.8.1)
+    minitest (5.8.2)
     minitest-rails (2.2.0)
       minitest (~> 5.7)
       railties (~> 4.1)
@@ -242,6 +247,7 @@ DEPENDENCIES
   exception_notification
   factory_girl_rails
   font-awesome-rails
+  handlebars_assets
   jquery-rails
   minitest-rails
   multi_json
@@ -261,3 +267,6 @@ DEPENDENCIES
   uglifier (>= 1.3.0)
   web-console (~> 2.0)
   will_paginate
+
+BUNDLED WITH
+   1.10.6
