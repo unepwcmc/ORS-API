@@ -4,12 +4,12 @@ window.Questionnaires = class Questionnaires
     @get_questionnaires()
 
   get_questionnaires: ->
-    $.ajax '/api/v1/questionnaires.json',
+    $.ajax 'http://demo-ors-api.ort-staging.linode.unep-wcmc.org/api/v1/questionnaires.json',
       type: 'GET'
       dataType: 'json'
       contentType: 'text/plain'
       beforeSend: (request) ->
-        request.setRequestHeader("X-Authentication-Token", 'QIrNAOBzbj64yMVbR8j')
+        request.setRequestHeader("X-Authentication-Token", 'xzBA8HXinAO2zprPr')
       error: (jqXHR, textStatus, errorThrown) ->
         @$container_el.append "AJAX Error: #{textStatus}"
       success: (data, textStatus, jqXHR) =>
