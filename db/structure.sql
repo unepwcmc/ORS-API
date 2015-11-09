@@ -303,6 +303,56 @@ ALTER SEQUENCE answers_id_seq OWNED BY answers.id;
 
 
 --
+-- Name: users; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE users (
+    id integer NOT NULL,
+    email character varying(255) NOT NULL,
+    persistence_token character varying(255) NOT NULL,
+    crypted_password character varying(255) NOT NULL,
+    password_salt character varying(255) NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    login_count integer DEFAULT 0 NOT NULL,
+    failed_login_count integer DEFAULT 0 NOT NULL,
+    last_request_at timestamp without time zone,
+    current_login_at timestamp without time zone,
+    last_login_at timestamp without time zone,
+    current_login_ip character varying(255),
+    last_login_ip character varying(255),
+    perishable_token character varying(255) NOT NULL,
+    single_access_token character varying(255) NOT NULL,
+    first_name character varying(255),
+    last_name character varying(255),
+    creator_id integer DEFAULT 0,
+    language character varying(255) DEFAULT 'en'::character varying,
+    category character varying(255)
+);
+
+
+--
+-- Name: api_answers_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_answers_view AS
+ SELECT answers.id,
+    answers.question_id,
+    answers.user_id,
+    (((users.first_name)::text || ' '::text) || (users.last_name)::text) AS respondent,
+    answers.looping_identifier,
+    answers.question_answered,
+    ap.answer_text,
+    ap.field_type_type,
+    ap.field_type_id,
+    ap.details_text,
+    ap.answer_text_in_english
+   FROM ((answers
+     JOIN answer_parts ap ON ((ap.answer_id = answers.id)))
+     JOIN users ON ((users.id = answers.user_id)));
+
+
+--
 -- Name: multi_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -513,8 +563,6 @@ CREATE VIEW api_questions_view AS
           GROUP BY question_fields_1.question_id
         )
  SELECT questions.id,
-    questions.type,
-    questions.number,
     questions.section_id,
     questions.answer_type_id,
     questions.answer_type_type,
@@ -676,6 +724,10 @@ CREATE VIEW api_sections_tree_view AS
             s.section_type,
             s.loop_source_id,
             s.loop_item_type_id,
+                CASE
+                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
+                    ELSE NULL::integer
+                END AS looping_section_id,
             s.depends_on_question_id,
             s.depends_on_option_id,
             s.depends_on_option_value,
@@ -699,6 +751,11 @@ CREATE VIEW api_sections_tree_view AS
             s.section_type,
             s.loop_source_id,
             COALESCE(s.loop_item_type_id, h.loop_item_type_id) AS "coalesce",
+            COALESCE(
+                CASE
+                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
+                    ELSE NULL::integer
+                END, h.looping_section_id) AS "coalesce",
             s.depends_on_question_id,
             s.depends_on_option_id,
             s.depends_on_option_value,
@@ -722,6 +779,7 @@ CREATE VIEW api_sections_tree_view AS
     qp.section_type,
     qp.loop_source_id,
     qp.loop_item_type_id,
+    qp.looping_section_id,
     qp.depends_on_question_id,
     qp.depends_on_option_id,
     qp.depends_on_option_value,
@@ -754,8 +812,6 @@ CREATE VIEW api_questions_tree_view AS
           GROUP BY rao.range_answer_id, rao.language
         )
  SELECT q.id,
-    q.type,
-    q.number,
     q.section_id,
     q.answer_type_id,
     q.answer_type_type,
@@ -771,6 +827,7 @@ CREATE VIEW api_questions_tree_view AS
     s.section_type,
     s.loop_source_id,
     s.loop_item_type_id,
+    s.looping_section_id,
     s.depends_on_question_id,
     s.depends_on_option_id,
     s.depends_on_option_value,
@@ -807,35 +864,6 @@ CREATE TABLE authorized_submitters (
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE users (
-    id integer NOT NULL,
-    email character varying(255) NOT NULL,
-    persistence_token character varying(255) NOT NULL,
-    crypted_password character varying(255) NOT NULL,
-    password_salt character varying(255) NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    login_count integer DEFAULT 0 NOT NULL,
-    failed_login_count integer DEFAULT 0 NOT NULL,
-    last_request_at timestamp without time zone,
-    current_login_at timestamp without time zone,
-    last_login_at timestamp without time zone,
-    current_login_ip character varying(255),
-    last_login_ip character varying(255),
-    perishable_token character varying(255) NOT NULL,
-    single_access_token character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    creator_id integer DEFAULT 0,
-    language character varying(255) DEFAULT 'en'::character varying,
-    category character varying(255)
-);
-
-
---
 -- Name: api_respondents_view; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -854,6 +882,91 @@ CREATE VIEW api_respondents_view AS
     authorized_submitters.status AS status_code
    FROM (authorized_submitters
      JOIN users ON ((users.id = authorized_submitters.user_id)));
+
+
+--
+-- Name: loop_item_name_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_item_name_fields (
+    id integer NOT NULL,
+    language character varying(255),
+    item_name character varying(255),
+    is_default_language boolean,
+    loop_item_name_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: loop_item_names; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_item_names (
+    id integer NOT NULL,
+    loop_source_id integer,
+    loop_item_type_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: loop_items; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_items (
+    id integer NOT NULL,
+    parent_id integer,
+    lft integer,
+    rgt integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    loop_item_type_id integer,
+    sort_index integer DEFAULT 0,
+    loop_item_name_id integer,
+    original_id integer
+);
+
+
+--
+-- Name: api_sections_looping_contexts_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_sections_looping_contexts_view AS
+ WITH RECURSIVE li_tree(li_id, li_parent_id, section_id, li_context, lin_context, language) AS (
+         SELECT li.id,
+            li.parent_id,
+            s_1.id,
+            ARRAY[li.id] AS "array",
+            ARRAY[(linf.item_name)::text] AS "array",
+            upper((linf.language)::text) AS upper
+           FROM (((loop_items li
+             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
+             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
+             JOIN loop_item_name_fields linf ON ((linf.loop_item_name_id = lin.id)))
+          WHERE (li.parent_id IS NULL)
+        UNION ALL
+         SELECT li.id,
+            li.parent_id,
+            s_1.id,
+            (li_tree_1.li_context || ARRAY[li.id]),
+            (li_tree_1.lin_context || ARRAY[(linf.item_name)::text]),
+            upper((linf.language)::text) AS upper
+           FROM ((((loop_items li
+             JOIN li_tree li_tree_1 ON ((li.parent_id = li_tree_1.li_id)))
+             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
+             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
+             JOIN loop_item_name_fields linf ON (((linf.loop_item_name_id = lin.id) AND (upper((linf.language)::text) = li_tree_1.language))))
+        )
+ SELECT s.id AS section_id,
+    array_to_string(li_tree.li_context, 'S'::text) AS looping_identifier,
+    li_tree.lin_context AS looping_context,
+    li_tree.language
+   FROM (api_sections_tree_view s
+     JOIN li_tree ON ((s.looping_section_id = li_tree.section_id)));
 
 
 --
@@ -1318,21 +1431,6 @@ ALTER SEQUENCE item_extras_id_seq OWNED BY item_extras.id;
 
 
 --
--- Name: loop_item_name_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_item_name_fields (
-    id integer NOT NULL,
-    language character varying(255),
-    item_name character varying(255),
-    is_default_language boolean,
-    loop_item_name_id integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
-);
-
-
---
 -- Name: loop_item_name_fields_id_seq; Type: SEQUENCE; Schema: public; Owner: -
 --
 
@@ -1349,20 +1447,6 @@ CREATE SEQUENCE loop_item_name_fields_id_seq
 --
 
 ALTER SEQUENCE loop_item_name_fields_id_seq OWNED BY loop_item_name_fields.id;
-
-
---
--- Name: loop_item_names; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_item_names (
-    id integer NOT NULL,
-    loop_source_id integer,
-    loop_item_type_id integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    original_id integer
-);
 
 
 --
@@ -1419,24 +1503,6 @@ CREATE SEQUENCE loop_item_types_id_seq
 --
 
 ALTER SEQUENCE loop_item_types_id_seq OWNED BY loop_item_types.id;
-
-
---
--- Name: loop_items; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_items (
-    id integer NOT NULL,
-    parent_id integer,
-    lft integer,
-    rgt integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    loop_item_type_id integer,
-    sort_index integer DEFAULT 0,
-    loop_item_name_id integer,
-    original_id integer
-);
 
 
 --
@@ -4156,3 +4222,5 @@ INSERT INTO schema_migrations (version) VALUES ('20151029095232');
 INSERT INTO schema_migrations (version) VALUES ('20151030150608');
 
 INSERT INTO schema_migrations (version) VALUES ('20151030151237');
+
+INSERT INTO schema_migrations (version) VALUES ('20151109160327');

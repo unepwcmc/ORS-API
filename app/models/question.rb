@@ -4,4 +4,7 @@ class Question < ActiveRecord::Base
   self.primary_key = :id
   include WithLanguage
 
+  belongs_to :section
+  has_many :answers
+  has_many :section_looping_contexts, -> { includes :looping_answers}, through: :section
 end
