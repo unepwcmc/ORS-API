@@ -38,7 +38,7 @@ gem 'authlogic', '~> 3.4.2'
 
 gem 'font-awesome-rails'
 
-gem 'handlebars_assets'
+gem 'handlebars_assets', '0.20.1'
 
 group :staging, :production do
   gem 'dotenv-rails'
