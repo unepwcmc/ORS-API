@@ -4,12 +4,12 @@ window.Questions = class Questions
 
   get_questions: ->
     $.ajax(
-      url: "/api/v1/questionnaires/#{@questionnaire_id}/questions"
+      url: "http://demo-ors-api.ort-staging.linode.unep-wcmc.org/api/v1/questionnaires/#{@questionnaire_id}/questions"
       type: 'GET'
       dataType: 'json'
       contentType: 'text/plain'
       beforeSend: (request) ->
-        request.setRequestHeader("X-Authentication-Token", 'QIrNAOBzbj64yMVbR8j')
+        request.setRequestHeader("X-Authentication-Token", 'xzBA8HXinAO2zprPr')
       error: (jqXHR, textStatus, errorThrown) ->
         @$container_el.append "AJAX Error: {textStatus}"
       success: (data, textStatus, jqXHR) =>

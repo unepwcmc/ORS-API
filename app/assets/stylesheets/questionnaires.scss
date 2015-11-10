@@ -1,5 +1,11 @@
 @import "variables";
 
+.questionnaires-container {
+  ul {
+    li { margin-top: 10px; }
+  }
+}
+
 .questionnaire-tabs {
   width: 100%;
   list-style: none;

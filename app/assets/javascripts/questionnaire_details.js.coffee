@@ -3,19 +3,19 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     @$details_container, @$questions_container) ->
 
     @questionnaire_helper = new QuestionnaireHelper()
-    @questionnaire_id = @$container_el.data('questionnaire_id')
+    @questionnaire_id = localStorage.getItem('questionnaire_id')
     @get_questionnaire_details()
     new Questions(@$questions_container, @questionnaire_id)
     @init_events()
 
   get_questionnaire_details: ->
     $.ajax(
-      url: "/api/v1/questionnaires/#{@questionnaire_id}"
+      url: "http://demo-ors-api.ort-staging.linode.unep-wcmc.org/api/v1/questionnaires/#{@questionnaire_id}"
       type: 'GET'
       dataType: 'json'
       contentType: 'text/plain'
       beforeSend: (request) ->
-        request.setRequestHeader("X-Authentication-Token", 'QIrNAOBzbj64yMVbR8j')
+        request.setRequestHeader("X-Authentication-Token", 'xzBA8HXinAO2zprPr')
       error: (jqXHR, textStatus, errorThrown) ->
         @$container_el.append "AJAX Error: #{textStatus}"
       success: (data, textStatus, jqXHR) =>
@@ -27,6 +27,7 @@ window.QuestionnaireDetails = class QuestionnaireDetails
     @sort_respondents(questionnaire.respondents)
     $.extend(questionnaire,{submissions: submissions, no_respondents: respondents})
 
+    @$container_el.find('h1').append(questionnaire.title)
     @$details_container.append(HandlebarsTemplates['questionnaire/details'](questionnaire))
 
   sort_respondents: (respondents) ->

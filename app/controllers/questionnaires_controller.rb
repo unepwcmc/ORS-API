@@ -4,7 +4,6 @@ class QuestionnairesController < ApplicationController
   end
 
   def show
-    @questionnaire = Questionnaire.find(params[:id])
   end
 
 end
