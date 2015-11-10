@@ -6,11 +6,11 @@ class Api::V1::QuestionDetailsController < Api::V1::BaseController
 
   api :GET, '/:questionnaire_id/questions/:id', 'Question details'
 
-  description field_description
+  description field_description{ field_description_answers }
 
-  example json_example
+  example json_example{ json_example_answers }
 
-  example xml_example
+  example xml_example{ xml_example_answers }
 
   param :id, String,
     desc: 'Id of the question',
