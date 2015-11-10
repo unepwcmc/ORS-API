@@ -23,7 +23,7 @@ module QuestionnaireExamples
   <<-EOS
   The following questionnaire fields are returned:
 
-  [id] unique identifier of a taxon concept
+  [id] unique identifier of a questionnaire
   [title] title of the questionnaire (translated where available)
   [language] current language (given as ISO code)
   [languages] all available languages (given as array of ISO codes)

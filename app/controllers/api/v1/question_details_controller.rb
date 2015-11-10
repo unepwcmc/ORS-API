@@ -2,15 +2,15 @@ class Api::V1::QuestionDetailsController < Api::V1::BaseController
   before_action :load_questionnaire, only: [:show]
   represents :json, Question
   represents :xml, Question
-
-  resource_description do
-    formats ['JSON', 'XML']
-    api_base_url 'api/v1/questionnaires'
-    resource_id 'questions'
-    name 'Questions'
-  end
+  include QuestionExamples
 
   api :GET, '/:questionnaire_id/questions/:id', 'Question details'
+
+  description field_description
+
+  example json_example
+
+  example xml_example
 
   param :id, String,
     desc: 'Id of the question',

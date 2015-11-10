@@ -11,7 +11,7 @@ class Api::V1::QuestionnairesController < Api::V1::BaseController
   description <<-EOS
 #{field_description}
 
-Where more than #{MAX_PER_PAGE} taxon concepts are returned, the request is paginated, showing #{MAX_PER_PAGE} objects (or less by passing in an optional 'per_page' parameter) at a time. To fetch the remaining objects, you will need to make a new request and pass the optional ‘page’ parameter as below:
+Where more than #{MAX_PER_PAGE} questionnaires are returned, the request is paginated, showing #{MAX_PER_PAGE} objects (or less by passing in an optional 'per_page' parameter) at a time. To fetch the remaining objects, you will need to make a new request and pass the optional ‘page’ parameter as below:
 
   http://ors-api-host/api/v1/questionnaires?page=2&per_page=25
 
