@@ -1,4 +1,5 @@
 $(document).on 'ready page:load', ->
+  $.support.cors = true;
   new Questionnaires($('.questionnaires-container'), $('.questionnaires'))
 
   if $('.questionnaire-info').length > 0
