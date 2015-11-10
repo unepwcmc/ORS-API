@@ -20,6 +20,6 @@ class QuestionRepresenter < Roar::Decorator
   property :options
   collection :answers, extend: AnswerRepresenter, class: Answer,
     wrap: :answers
-  collection :section_looping_contexts, extend: SectionLoopingContextRepresenter,
-    class: SectionLoopingContext, wrap: :looping_answers
+  collection :looping_contexts, extend: LoopingContextRepresenter,
+    class: LoopingContext, wrap: :looping_answers
 end

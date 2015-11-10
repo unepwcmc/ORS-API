@@ -5,6 +5,6 @@ class Question < ActiveRecord::Base
   include WithLanguage
 
   belongs_to :section
-  has_many :answers
-  has_many :section_looping_contexts, -> { includes :looping_answers}, through: :section
+  has_many :answers, -> { where(looping_identifier: nil) }
+  has_many :looping_contexts
 end

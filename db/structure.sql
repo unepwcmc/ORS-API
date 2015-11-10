@@ -494,20 +494,77 @@ CREATE VIEW api_questionnaires_view AS
 
 
 --
--- Name: question_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+-- Name: section_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
-CREATE TABLE question_fields (
+CREATE TABLE section_fields (
     id integer NOT NULL,
-    language character varying(255),
     title text,
-    short_title character varying(255),
+    language character varying(255),
     description text,
-    question_id integer,
+    section_id integer,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    is_default_language boolean DEFAULT false
+    is_default_language boolean DEFAULT false,
+    tab_title text
 );
+
+
+--
+-- Name: sections; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE sections (
+    id integer NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    last_edited timestamp without time zone,
+    section_type integer,
+    answer_type_id integer,
+    answer_type_type character varying(255),
+    loop_source_id integer,
+    loop_item_type_id integer,
+    depends_on_option_id integer,
+    depends_on_option_value boolean DEFAULT true,
+    depends_on_question_id integer,
+    is_hidden boolean DEFAULT false,
+    starts_collapsed boolean DEFAULT false,
+    display_in_tab boolean DEFAULT false,
+    original_id integer
+);
+
+
+--
+-- Name: api_sections_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_sections_view AS
+ WITH s_lngs AS (
+         SELECT section_fields_1.section_id,
+            array_agg(upper((section_fields_1.language)::text)) AS languages
+           FROM section_fields section_fields_1
+          WHERE (squish_null(section_fields_1.title) IS NOT NULL)
+          GROUP BY section_fields_1.section_id
+        )
+ SELECT sections.id,
+    sections.section_type,
+    sections.loop_source_id,
+    sections.loop_item_type_id,
+    sections.depends_on_question_id,
+    sections.depends_on_option_id,
+    sections.depends_on_option_value,
+    sections.is_hidden,
+    sections.display_in_tab,
+    strip_tags(section_fields.title) AS title,
+    upper((section_fields.language)::text) AS language,
+    section_fields.is_default_language,
+    section_fields.tab_title,
+    s_lngs.languages
+   FROM ((sections
+     JOIN section_fields ON ((sections.id = section_fields.section_id)))
+     JOIN s_lngs ON ((s_lngs.section_id = sections.id)))
+  WHERE (squish_null(section_fields.title) IS NOT NULL)
+  ORDER BY sections.id;
 
 
 --
@@ -529,6 +586,175 @@ CREATE TABLE questionnaire_parts (
 
 
 --
+-- Name: api_sections_tree_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_sections_tree_view AS
+ WITH RECURSIVE section_qparts_with_descendents AS (
+         SELECT h.questionnaire_id,
+            h.id AS qp_id,
+            h.parent_id AS qp_parent_id,
+            ARRAY[s.title] AS path,
+            s.id,
+            NULL::integer AS parent_id,
+            s.section_type,
+            s.loop_source_id,
+            s.loop_item_type_id,
+                CASE
+                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
+                    ELSE NULL::integer
+                END AS looping_section_id,
+            s.depends_on_question_id,
+            s.depends_on_option_id,
+            s.depends_on_option_value,
+            s.is_hidden,
+            s.display_in_tab,
+            s.title,
+            s.language,
+            s.is_default_language,
+            s.tab_title,
+            s.languages
+           FROM (questionnaire_parts h
+             JOIN api_sections_view s ON (((h.part_id = s.id) AND ((h.part_type)::text = 'Section'::text))))
+          WHERE (h.parent_id IS NULL)
+        UNION
+         SELECT h.questionnaire_id,
+            hi.id AS qp_id,
+            hi.parent_id AS qp_parent_id,
+            (h.path || ARRAY[s.title]),
+            s.id,
+            h.id AS parent_id,
+            s.section_type,
+            s.loop_source_id,
+            COALESCE(s.loop_item_type_id, h.loop_item_type_id) AS "coalesce",
+            COALESCE(
+                CASE
+                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
+                    ELSE NULL::integer
+                END, h.looping_section_id) AS "coalesce",
+            s.depends_on_question_id,
+            s.depends_on_option_id,
+            s.depends_on_option_value,
+            s.is_hidden,
+            s.display_in_tab,
+            s.title,
+            s.language,
+            s.is_default_language,
+            s.tab_title,
+            s.languages
+           FROM ((questionnaire_parts hi
+             JOIN api_sections_view s ON (((hi.part_id = s.id) AND ((hi.part_type)::text = 'Section'::text))))
+             JOIN section_qparts_with_descendents h ON (((h.qp_id = hi.parent_id) AND (h.language = s.language))))
+        )
+ SELECT qp.questionnaire_id,
+    qp.qp_id,
+    qp.qp_parent_id,
+    qp.path,
+    qp.id,
+    qp.parent_id,
+    qp.section_type,
+    qp.loop_source_id,
+    qp.loop_item_type_id,
+    qp.looping_section_id,
+    qp.depends_on_question_id,
+    qp.depends_on_option_id,
+    qp.depends_on_option_value,
+    qp.is_hidden,
+    qp.display_in_tab,
+    qp.title,
+    qp.language,
+    qp.is_default_language,
+    qp.tab_title,
+    qp.languages
+   FROM section_qparts_with_descendents qp;
+
+
+--
+-- Name: loop_item_name_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_item_name_fields (
+    id integer NOT NULL,
+    language character varying(255),
+    item_name character varying(255),
+    is_default_language boolean,
+    loop_item_name_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL
+);
+
+
+--
+-- Name: loop_item_names; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_item_names (
+    id integer NOT NULL,
+    loop_source_id integer,
+    loop_item_type_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: loop_items; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE loop_items (
+    id integer NOT NULL,
+    parent_id integer,
+    lft integer,
+    rgt integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    loop_item_type_id integer,
+    sort_index integer DEFAULT 0,
+    loop_item_name_id integer,
+    original_id integer
+);
+
+
+--
+-- Name: api_sections_looping_contexts_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_sections_looping_contexts_view AS
+ WITH RECURSIVE li_tree(li_id, li_parent_id, section_id, li_context, lin_context, language) AS (
+         SELECT li.id,
+            li.parent_id,
+            s_1.id,
+            ARRAY[li.id] AS "array",
+            ARRAY[(linf.item_name)::text] AS "array",
+            upper((linf.language)::text) AS upper
+           FROM (((loop_items li
+             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
+             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
+             JOIN loop_item_name_fields linf ON ((linf.loop_item_name_id = lin.id)))
+          WHERE (li.parent_id IS NULL)
+        UNION ALL
+         SELECT li.id,
+            li.parent_id,
+            s_1.id,
+            (li_tree_1.li_context || ARRAY[li.id]),
+            (li_tree_1.lin_context || ARRAY[(linf.item_name)::text]),
+            upper((linf.language)::text) AS upper
+           FROM ((((loop_items li
+             JOIN li_tree li_tree_1 ON ((li.parent_id = li_tree_1.li_id)))
+             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
+             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
+             JOIN loop_item_name_fields linf ON (((linf.loop_item_name_id = lin.id) AND (upper((linf.language)::text) = li_tree_1.language))))
+        )
+ SELECT s.id AS section_id,
+    array_to_string(li_tree.li_context, 'S'::text) AS looping_identifier,
+    li_tree.lin_context AS looping_context,
+    li_tree.language
+   FROM (api_sections_tree_view s
+     JOIN li_tree ON ((s.looping_section_id = li_tree.section_id)));
+
+
+--
 -- Name: questions; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -547,6 +773,37 @@ CREATE TABLE questions (
     ordering integer,
     allow_attachments boolean DEFAULT true,
     original_id integer
+);
+
+
+--
+-- Name: api_questions_looping_contexts_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_questions_looping_contexts_view AS
+ SELECT questions.id AS question_id,
+    slc.section_id,
+    slc.looping_identifier,
+    slc.looping_context,
+    slc.language
+   FROM (api_sections_looping_contexts_view slc
+     JOIN questions ON ((slc.section_id = questions.section_id)));
+
+
+--
+-- Name: question_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE question_fields (
+    id integer NOT NULL,
+    language character varying(255),
+    title text,
+    short_title character varying(255),
+    description text,
+    question_id integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    is_default_language boolean DEFAULT false
 );
 
 
@@ -633,164 +890,6 @@ CREATE VIEW api_range_answer_options_view AS
      JOIN range_answer_option_fields raof ON ((raof.range_answer_option_id = rao.id)))
      JOIN rao_lngs ON ((rao_lngs.range_answer_option_id = rao.id)))
   WHERE (squish_null((raof.option_text)::text) IS NOT NULL);
-
-
---
--- Name: section_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE section_fields (
-    id integer NOT NULL,
-    title text,
-    language character varying(255),
-    description text,
-    section_id integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    is_default_language boolean DEFAULT false,
-    tab_title text
-);
-
-
---
--- Name: sections; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE sections (
-    id integer NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    last_edited timestamp without time zone,
-    section_type integer,
-    answer_type_id integer,
-    answer_type_type character varying(255),
-    loop_source_id integer,
-    loop_item_type_id integer,
-    depends_on_option_id integer,
-    depends_on_option_value boolean DEFAULT true,
-    depends_on_question_id integer,
-    is_hidden boolean DEFAULT false,
-    starts_collapsed boolean DEFAULT false,
-    display_in_tab boolean DEFAULT false,
-    original_id integer
-);
-
-
---
--- Name: api_sections_view; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW api_sections_view AS
- WITH s_lngs AS (
-         SELECT section_fields_1.section_id,
-            array_agg(upper((section_fields_1.language)::text)) AS languages
-           FROM section_fields section_fields_1
-          WHERE (squish_null(section_fields_1.title) IS NOT NULL)
-          GROUP BY section_fields_1.section_id
-        )
- SELECT sections.id,
-    sections.section_type,
-    sections.loop_source_id,
-    sections.loop_item_type_id,
-    sections.depends_on_question_id,
-    sections.depends_on_option_id,
-    sections.depends_on_option_value,
-    sections.is_hidden,
-    sections.display_in_tab,
-    strip_tags(section_fields.title) AS title,
-    upper((section_fields.language)::text) AS language,
-    section_fields.is_default_language,
-    section_fields.tab_title,
-    s_lngs.languages
-   FROM ((sections
-     JOIN section_fields ON ((sections.id = section_fields.section_id)))
-     JOIN s_lngs ON ((s_lngs.section_id = sections.id)))
-  WHERE (squish_null(section_fields.title) IS NOT NULL)
-  ORDER BY sections.id;
-
-
---
--- Name: api_sections_tree_view; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW api_sections_tree_view AS
- WITH RECURSIVE section_qparts_with_descendents AS (
-         SELECT h.questionnaire_id,
-            h.id AS qp_id,
-            h.parent_id AS qp_parent_id,
-            ARRAY[s.title] AS path,
-            s.id,
-            NULL::integer AS parent_id,
-            s.section_type,
-            s.loop_source_id,
-            s.loop_item_type_id,
-                CASE
-                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
-                    ELSE NULL::integer
-                END AS looping_section_id,
-            s.depends_on_question_id,
-            s.depends_on_option_id,
-            s.depends_on_option_value,
-            s.is_hidden,
-            s.display_in_tab,
-            s.title,
-            s.language,
-            s.is_default_language,
-            s.tab_title,
-            s.languages
-           FROM (questionnaire_parts h
-             JOIN api_sections_view s ON (((h.part_id = s.id) AND ((h.part_type)::text = 'Section'::text))))
-          WHERE (h.parent_id IS NULL)
-        UNION
-         SELECT h.questionnaire_id,
-            hi.id AS qp_id,
-            hi.parent_id AS qp_parent_id,
-            (h.path || ARRAY[s.title]),
-            s.id,
-            h.id AS parent_id,
-            s.section_type,
-            s.loop_source_id,
-            COALESCE(s.loop_item_type_id, h.loop_item_type_id) AS "coalesce",
-            COALESCE(
-                CASE
-                    WHEN (s.loop_item_type_id IS NOT NULL) THEN s.id
-                    ELSE NULL::integer
-                END, h.looping_section_id) AS "coalesce",
-            s.depends_on_question_id,
-            s.depends_on_option_id,
-            s.depends_on_option_value,
-            s.is_hidden,
-            s.display_in_tab,
-            s.title,
-            s.language,
-            s.is_default_language,
-            s.tab_title,
-            s.languages
-           FROM ((questionnaire_parts hi
-             JOIN api_sections_view s ON (((hi.part_id = s.id) AND ((hi.part_type)::text = 'Section'::text))))
-             JOIN section_qparts_with_descendents h ON (((h.qp_id = hi.parent_id) AND (h.language = s.language))))
-        )
- SELECT qp.questionnaire_id,
-    qp.qp_id,
-    qp.qp_parent_id,
-    qp.path,
-    qp.id,
-    qp.parent_id,
-    qp.section_type,
-    qp.loop_source_id,
-    qp.loop_item_type_id,
-    qp.looping_section_id,
-    qp.depends_on_question_id,
-    qp.depends_on_option_id,
-    qp.depends_on_option_value,
-    qp.is_hidden,
-    qp.display_in_tab,
-    qp.title,
-    qp.language,
-    qp.is_default_language,
-    qp.tab_title,
-    qp.languages
-   FROM section_qparts_with_descendents qp;
 
 
 --
@@ -882,91 +981,6 @@ CREATE VIEW api_respondents_view AS
     authorized_submitters.status AS status_code
    FROM (authorized_submitters
      JOIN users ON ((users.id = authorized_submitters.user_id)));
-
-
---
--- Name: loop_item_name_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_item_name_fields (
-    id integer NOT NULL,
-    language character varying(255),
-    item_name character varying(255),
-    is_default_language boolean,
-    loop_item_name_id integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
-);
-
-
---
--- Name: loop_item_names; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_item_names (
-    id integer NOT NULL,
-    loop_source_id integer,
-    loop_item_type_id integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    original_id integer
-);
-
-
---
--- Name: loop_items; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE loop_items (
-    id integer NOT NULL,
-    parent_id integer,
-    lft integer,
-    rgt integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    loop_item_type_id integer,
-    sort_index integer DEFAULT 0,
-    loop_item_name_id integer,
-    original_id integer
-);
-
-
---
--- Name: api_sections_looping_contexts_view; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW api_sections_looping_contexts_view AS
- WITH RECURSIVE li_tree(li_id, li_parent_id, section_id, li_context, lin_context, language) AS (
-         SELECT li.id,
-            li.parent_id,
-            s_1.id,
-            ARRAY[li.id] AS "array",
-            ARRAY[(linf.item_name)::text] AS "array",
-            upper((linf.language)::text) AS upper
-           FROM (((loop_items li
-             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
-             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
-             JOIN loop_item_name_fields linf ON ((linf.loop_item_name_id = lin.id)))
-          WHERE (li.parent_id IS NULL)
-        UNION ALL
-         SELECT li.id,
-            li.parent_id,
-            s_1.id,
-            (li_tree_1.li_context || ARRAY[li.id]),
-            (li_tree_1.lin_context || ARRAY[(linf.item_name)::text]),
-            upper((linf.language)::text) AS upper
-           FROM ((((loop_items li
-             JOIN li_tree li_tree_1 ON ((li.parent_id = li_tree_1.li_id)))
-             JOIN sections s_1 ON ((s_1.loop_item_type_id = li.loop_item_type_id)))
-             JOIN loop_item_names lin ON ((lin.id = li.loop_item_name_id)))
-             JOIN loop_item_name_fields linf ON (((linf.loop_item_name_id = lin.id) AND (upper((linf.language)::text) = li_tree_1.language))))
-        )
- SELECT s.id AS section_id,
-    array_to_string(li_tree.li_context, 'S'::text) AS looping_identifier,
-    li_tree.lin_context AS looping_context,
-    li_tree.language
-   FROM (api_sections_tree_view s
-     JOIN li_tree ON ((s.looping_section_id = li_tree.section_id)));
 
 
 --
@@ -4224,3 +4238,5 @@ INSERT INTO schema_migrations (version) VALUES ('20151030150608');
 INSERT INTO schema_migrations (version) VALUES ('20151030151237');
 
 INSERT INTO schema_migrations (version) VALUES ('20151109160327');
+
+INSERT INTO schema_migrations (version) VALUES ('20151110093219');
