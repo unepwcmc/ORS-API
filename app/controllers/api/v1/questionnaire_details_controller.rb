@@ -25,7 +25,7 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
   private
 
   def permitted_params
-    [:questionnaire_id, :id, :language, :format]
+    [:id, :language, :format]
   end
 
 end
