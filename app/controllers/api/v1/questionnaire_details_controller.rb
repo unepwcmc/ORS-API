@@ -7,15 +7,15 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
 
   description field_description
 
-  example json_example
-
-  example xml_example
-
   param :id, String,
     desc: 'Id of the questionnaire',
     required: true
   param :language, String,
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
+
+  example json_example
+
+  example xml_example
 
   def show
     @questionnaire = Questionnaire.where(id: params[:id]).with_language(@language).first

@@ -5,7 +5,9 @@ Rails.application.routes.draw do
     namespace :v1 do
       resources :questionnaires, only: [:index], defaults: { format: 'json' } do
         get '/', controller: :questionnaire_details, action: :show, defaults: { format: 'json' }, on: :member
-        resources :questions, only: [:index], defaults: { format: 'json' }
+        resources :questions, only: [:index], defaults: { format: 'json' } do
+          get '/', controller: :question_details, action: :show, defaults: { format: 'json' }, on: :member
+        end
       end
       get 'test_exception_notifier', controller: :base, action: :test_exception_notifier
     end

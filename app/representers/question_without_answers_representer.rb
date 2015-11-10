@@ -2,7 +2,7 @@ require 'roar/decorator'
 require 'roar/json'
 require 'roar/xml'
 
-class QuestionRepresenter < Roar::Decorator
+class QuestionWithoutAnswersRepresenter < Roar::Decorator
   include Roar::JSON
   include Roar::XML
 
@@ -18,8 +18,4 @@ class QuestionRepresenter < Roar::Decorator
   property :answer_type_type, as: :type
   property :is_mandatory
   property :options
-  collection :answers, extend: AnswerRepresenter, class: Answer,
-    wrap: :answers
-  collection :looping_contexts, extend: LoopingContextRepresenter,
-    class: LoopingContext, wrap: :looping_answers
 end

@@ -8,5 +8,5 @@ class QuestionsRepresenter < Roar::Decorator
 
   self.representation_wrap = :questions
 
-  items extend: QuestionRepresenter, class: Question
+  items extend: QuestionWithoutAnswersRepresenter, class: Question
 end
