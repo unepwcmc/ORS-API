@@ -303,56 +303,6 @@ ALTER SEQUENCE answers_id_seq OWNED BY answers.id;
 
 
 --
--- Name: users; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE users (
-    id integer NOT NULL,
-    email character varying(255) NOT NULL,
-    persistence_token character varying(255) NOT NULL,
-    crypted_password character varying(255) NOT NULL,
-    password_salt character varying(255) NOT NULL,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    login_count integer DEFAULT 0 NOT NULL,
-    failed_login_count integer DEFAULT 0 NOT NULL,
-    last_request_at timestamp without time zone,
-    current_login_at timestamp without time zone,
-    last_login_at timestamp without time zone,
-    current_login_ip character varying(255),
-    last_login_ip character varying(255),
-    perishable_token character varying(255) NOT NULL,
-    single_access_token character varying(255) NOT NULL,
-    first_name character varying(255),
-    last_name character varying(255),
-    creator_id integer DEFAULT 0,
-    language character varying(255) DEFAULT 'en'::character varying,
-    category character varying(255)
-);
-
-
---
--- Name: api_answers_view; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW api_answers_view AS
- SELECT answers.id,
-    answers.question_id,
-    answers.user_id,
-    (((users.first_name)::text || ' '::text) || (users.last_name)::text) AS respondent,
-    answers.looping_identifier,
-    answers.question_answered,
-    ap.answer_text,
-    ap.field_type_type,
-    ap.field_type_id,
-    ap.details_text,
-    ap.answer_text_in_english
-   FROM ((answers
-     JOIN answer_parts ap ON ((ap.answer_id = answers.id)))
-     JOIN users ON ((users.id = answers.user_id)));
-
-
---
 -- Name: multi_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
 --
 
@@ -405,6 +355,116 @@ CREATE VIEW api_multi_answer_options_view AS
      JOIN multi_answer_option_fields maof ON ((maof.multi_answer_option_id = mao.id)))
      JOIN mao_lngs ON ((mao_lngs.multi_answer_option_id = mao.id)))
   WHERE (squish_null(maof.option_text) IS NOT NULL);
+
+
+--
+-- Name: range_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE range_answer_option_fields (
+    id integer NOT NULL,
+    range_answer_option_id integer,
+    option_text character varying(255),
+    language character varying(255),
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    is_default_language boolean
+);
+
+
+--
+-- Name: range_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE range_answer_options (
+    id integer NOT NULL,
+    range_answer_id integer,
+    sort_index integer,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    original_id integer
+);
+
+
+--
+-- Name: api_range_answer_options_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_range_answer_options_view AS
+ WITH rao_lngs AS (
+         SELECT raof_1.range_answer_option_id,
+            array_agg(upper((raof_1.language)::text)) AS languages
+           FROM range_answer_option_fields raof_1
+          WHERE (squish_null((raof_1.option_text)::text) IS NOT NULL)
+          GROUP BY raof_1.range_answer_option_id
+        )
+ SELECT rao.id,
+    rao.range_answer_id,
+    rao.sort_index,
+    raof.option_text,
+    upper((raof.language)::text) AS language,
+    raof.is_default_language,
+    rao_lngs.languages
+   FROM ((range_answer_options rao
+     JOIN range_answer_option_fields raof ON ((raof.range_answer_option_id = rao.id)))
+     JOIN rao_lngs ON ((rao_lngs.range_answer_option_id = rao.id)))
+  WHERE (squish_null((raof.option_text)::text) IS NOT NULL);
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -; Tablespace: 
+--
+
+CREATE TABLE users (
+    id integer NOT NULL,
+    email character varying(255) NOT NULL,
+    persistence_token character varying(255) NOT NULL,
+    crypted_password character varying(255) NOT NULL,
+    password_salt character varying(255) NOT NULL,
+    created_at timestamp without time zone NOT NULL,
+    updated_at timestamp without time zone NOT NULL,
+    login_count integer DEFAULT 0 NOT NULL,
+    failed_login_count integer DEFAULT 0 NOT NULL,
+    last_request_at timestamp without time zone,
+    current_login_at timestamp without time zone,
+    last_login_at timestamp without time zone,
+    current_login_ip character varying(255),
+    last_login_ip character varying(255),
+    perishable_token character varying(255) NOT NULL,
+    single_access_token character varying(255) NOT NULL,
+    first_name character varying(255),
+    last_name character varying(255),
+    creator_id integer DEFAULT 0,
+    language character varying(255) DEFAULT 'en'::character varying,
+    category character varying(255)
+);
+
+
+--
+-- Name: api_answers_view; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW api_answers_view AS
+ SELECT answers.id,
+    answers.question_id,
+    answers.user_id,
+    (((users.first_name)::text || ' '::text) || (users.last_name)::text) AS respondent,
+    answers.looping_identifier,
+    answers.question_answered,
+    ap.field_type_type,
+    ap.field_type_id,
+        CASE
+            WHEN ((ap.field_type_type)::text = 'MultiAnswerOption'::text) THEN mao.option_text
+            WHEN ((ap.field_type_type)::text = 'RangeAnswerOption'::text) THEN (rao.option_text)::text
+            ELSE ap.answer_text
+        END AS answer_text,
+    ap.details_text,
+    ap.answer_text_in_english
+   FROM ((((answers
+     JOIN answer_parts ap ON ((ap.answer_id = answers.id)))
+     JOIN users ON ((users.id = answers.user_id)))
+     LEFT JOIN api_multi_answer_options_view mao ON (((mao.id = ap.field_type_id) AND ((ap.field_type_type)::text = 'MultiAnswerOption'::text))))
+     LEFT JOIN api_range_answer_options_view rao ON (((rao.id = ap.field_type_id) AND ((ap.field_type_type)::text = 'RangeAnswerOption'::text))));
 
 
 --
@@ -721,10 +781,11 @@ CREATE TABLE loop_items (
 --
 
 CREATE VIEW api_sections_looping_contexts_view AS
- WITH RECURSIVE li_tree(li_id, li_parent_id, section_id, li_context, lin_context, language) AS (
+ WITH RECURSIVE li_tree(li_id, li_parent_id, section_id, li_lft, li_context, lin_context, language) AS (
          SELECT li.id,
             li.parent_id,
             s_1.id,
+            li.lft,
             ARRAY[li.id] AS "array",
             ARRAY[(linf.item_name)::text] AS "array",
             upper((linf.language)::text) AS upper
@@ -737,6 +798,7 @@ CREATE VIEW api_sections_looping_contexts_view AS
          SELECT li.id,
             li.parent_id,
             s_1.id,
+            li.lft,
             (li_tree_1.li_context || ARRAY[li.id]),
             (li_tree_1.lin_context || ARRAY[(linf.item_name)::text]),
             upper((linf.language)::text) AS upper
@@ -747,11 +809,12 @@ CREATE VIEW api_sections_looping_contexts_view AS
              JOIN loop_item_name_fields linf ON (((linf.loop_item_name_id = lin.id) AND (upper((linf.language)::text) = li_tree_1.language))))
         )
  SELECT s.id AS section_id,
+    s.language,
     array_to_string(li_tree.li_context, 'S'::text) AS looping_identifier,
     li_tree.lin_context AS looping_context,
-    li_tree.language
+    li_tree.li_lft
    FROM (api_sections_tree_view s
-     JOIN li_tree ON ((s.looping_section_id = li_tree.section_id)));
+     JOIN li_tree ON (((s.looping_section_id = li_tree.section_id) AND (s.language = li_tree.language))));
 
 
 --
@@ -785,6 +848,7 @@ CREATE VIEW api_questions_looping_contexts_view AS
     slc.section_id,
     slc.looping_identifier,
     slc.looping_context,
+    slc.li_lft,
     slc.language
    FROM (api_sections_looping_contexts_view slc
      JOIN questions ON ((slc.section_id = questions.section_id)));
@@ -836,60 +900,6 @@ CREATE VIEW api_questions_view AS
      JOIN questionnaire_parts qp ON ((((qp.part_type)::text = 'Question'::text) AND (qp.part_id = questions.id))))
      JOIN q_lngs ON ((q_lngs.question_id = questions.id)))
   WHERE (((questions.answer_type_type)::text = ANY (ARRAY[('MultiAnswer'::character varying)::text, ('RangeAnswer'::character varying)::text, ('NumericAnswer'::character varying)::text])) AND (squish_null(question_fields.title) IS NOT NULL));
-
-
---
--- Name: range_answer_option_fields; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE range_answer_option_fields (
-    id integer NOT NULL,
-    range_answer_option_id integer,
-    option_text character varying(255),
-    language character varying(255),
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    is_default_language boolean
-);
-
-
---
--- Name: range_answer_options; Type: TABLE; Schema: public; Owner: -; Tablespace: 
---
-
-CREATE TABLE range_answer_options (
-    id integer NOT NULL,
-    range_answer_id integer,
-    sort_index integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL,
-    original_id integer
-);
-
-
---
--- Name: api_range_answer_options_view; Type: VIEW; Schema: public; Owner: -
---
-
-CREATE VIEW api_range_answer_options_view AS
- WITH rao_lngs AS (
-         SELECT raof_1.range_answer_option_id,
-            array_agg(upper((raof_1.language)::text)) AS languages
-           FROM range_answer_option_fields raof_1
-          WHERE (squish_null((raof_1.option_text)::text) IS NOT NULL)
-          GROUP BY raof_1.range_answer_option_id
-        )
- SELECT rao.id,
-    rao.range_answer_id,
-    rao.sort_index,
-    raof.option_text,
-    upper((raof.language)::text) AS language,
-    raof.is_default_language,
-    rao_lngs.languages
-   FROM ((range_answer_options rao
-     JOIN range_answer_option_fields raof ON ((raof.range_answer_option_id = rao.id)))
-     JOIN rao_lngs ON ((rao_lngs.range_answer_option_id = rao.id)))
-  WHERE (squish_null((raof.option_text)::text) IS NOT NULL);
 
 
 --
@@ -4240,3 +4250,7 @@ INSERT INTO schema_migrations (version) VALUES ('20151030151237');
 INSERT INTO schema_migrations (version) VALUES ('20151109160327');
 
 INSERT INTO schema_migrations (version) VALUES ('20151110093219');
+
+INSERT INTO schema_migrations (version) VALUES ('20151111121003');
+
+INSERT INTO schema_migrations (version) VALUES ('20151111125036');
