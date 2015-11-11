@@ -73,4 +73,5 @@ group :test do
   gem 'simplecov', require: false
   gem 'codeclimate-test-reporter', require: nil
   gem 'factory_girl_rails'
+  gem 'faker'
 end
