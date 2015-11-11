@@ -5,6 +5,7 @@ FactoryGirl.define do
   end
 
   factory :question_field, class: Test::QuestionField do
+    title 'English question title'
     language 'en'
     is_default_language true
   end

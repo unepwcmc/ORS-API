@@ -10,7 +10,7 @@ class QuestionTest < ActiveSupport::TestCase
 
     describe "when regular section" do
       before do
-        @question = create_question(@root_section, 'NumericAnswer')
+        @question = create_question(@root_section, answer_type_type: 'NumericAnswer')
         @user1 = FactoryGirl.create(:user)
         @answer1 = FactoryGirl.create(:answer, question: @question, user: @user1)
         FactoryGirl.create(:answer_part, answer: @answer1)

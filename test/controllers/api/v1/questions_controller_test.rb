@@ -5,7 +5,7 @@ describe Api::V1::QuestionsController do
     before(:each) do
       @questionnaire = create_questionnaire
       @root_section = create_section(@questionnaire)
-      @question = create_question(@root_section, 'NumericAnswer')
+      @question = create_question(@root_section, answer_type_type: 'NumericAnswer')
       @question.question_fields << FactoryGirl.create(
         :question_field, language: 'pl', title: 'Polski tytuł pytania', is_default_language: false
       )
