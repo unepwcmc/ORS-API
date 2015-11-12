@@ -8,12 +8,12 @@
 
     <h4> Answers </h4>
     {{#if grouped_answers}}
-      {{> question/_multiple_responses answers=grouped_answers}}
+      {{> question/_multiple_answers answers=grouped_answers}}
     {{else}}
       {{#if looping_answers}}
         {{> question/_nested_multiple_answers answers=looping_answers}}
       {{else}}
-        {{> question/_numeric_responses answers=answers}}
+        {{> question/_numeric_answers answers=answers}}
       {{/if}}
     {{/if}}
   </div>

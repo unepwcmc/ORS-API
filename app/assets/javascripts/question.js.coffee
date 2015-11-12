@@ -10,8 +10,7 @@ window.Question = class Question
     questions = @$container_el.find('.question-row')
     self = @
     questions.on('click', ->
-      question = self.get_question($(@).data('question_id'))
-      document.location = '#question_modal'
+      self.get_question($(@).data('question_id'))
     )
     @$container_el.on('click', '.close', ->
       $('#question_modal').remove()
@@ -34,6 +33,7 @@ window.Question = class Question
         else
           @group_answers(question)
         @$container_el.append(HandlebarsTemplates['question/question_modal'](question))
+        document.location = '#question_modal'
     )
 
   group_answers: (question) ->
