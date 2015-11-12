@@ -56,6 +56,13 @@ describe Api::V1::QuestionnairesController do
           assert_response 400
         end
       end
+
+      it "returns a bad request error when incorrect per_page value" do
+        as_signed_in_api_user do |api_user|
+          get :index, per_page: 'something'
+          assert_response 400
+        end
+      end
     end
 
     describe 'JSON' do

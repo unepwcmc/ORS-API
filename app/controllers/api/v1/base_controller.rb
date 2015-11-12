@@ -2,9 +2,9 @@ class Api::V1::BaseController < ApplicationController
   include Roar::Rails::ControllerAdditions
   respond_to :json, :xml
   before_action :authenticate, except: [:test_exception_notifier]
-  before_action :validate_params
-  before_action :set_language
-  before_action :set_page
+  before_action :validate_params, except: [:test_exception_notifier]
+  before_action :set_language, except: [:test_exception_notifier]
+  before_action :set_page, except: [:test_exception_notifier]
 
   rescue_from StandardError, with: :return_exception_error
 
@@ -46,14 +46,13 @@ class Api::V1::BaseController < ApplicationController
   end
 
   def return_exception_error(exception)
-    if Rails.env.production? || Rails.env.staging?
-      ExceptionNotifier.notify_exception(exception,
-        env: request.env, data: { message: "Something went wrong" }
-      )
-    else
-      Rails.logger.error exception.message
-      Rails.logger.error exception.backtrace.join("\n")
-    end
+    ExceptionNotifier.notify_exception(exception,
+      env: request.env, data: { message: "Something went wrong" }
+    )
+
+    Rails.logger.error exception.message
+    Rails.logger.error exception.backtrace.join("\n")
+
     render json: { message: "We are sorry, but something went wrong while processing your request" }, status: 500
   end
 
@@ -62,11 +61,17 @@ class Api::V1::BaseController < ApplicationController
   end
 
   def load_questionnaire
-    @questionnaire = Questionnaire.where(id: params[:questionnaire_id]).with_language(@language).first
+    @questionnaire = Questionnaire.where(id: params[:questionnaire_id] || params[:id]).with_language(@language).first
     unless @questionnaire
       head status: :not_found and return false
     end
   end
 
+  def load_question
+    @question = Question.where(id: params[:id]).with_language(@language).first
+    unless @question
+      head status: :not_found and return false
+    end
+  end
 
 end

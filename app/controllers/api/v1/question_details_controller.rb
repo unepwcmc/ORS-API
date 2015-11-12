@@ -1,5 +1,6 @@
 class Api::V1::QuestionDetailsController < Api::V1::BaseController
   before_action :load_questionnaire, only: [:show]
+  before_action :load_question, only: [:show]
   represents :json, Question
   represents :xml, Question
   include QuestionExamples
@@ -19,7 +20,6 @@ class Api::V1::QuestionDetailsController < Api::V1::BaseController
     desc: 'Where available display data in language given by ISO code (e.g. "EN"). Defaults to questionnaire\'s default language.'
 
   def show
-    @question = @questionnaire.questions.where(id: params[:id]).with_language(@language).first
     respond_with @question
   end
 

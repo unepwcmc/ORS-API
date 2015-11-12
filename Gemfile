@@ -40,11 +40,9 @@ gem 'font-awesome-rails'
 
 gem 'handlebars_assets', '0.20.1'
 
-group :staging, :production do
-  gem 'dotenv-rails'
-  gem 'exception_notification'
-  gem 'slack-notifier', '~> 1.0'
-end
+gem 'dotenv-rails'
+gem 'exception_notification'
+gem 'slack-notifier', '~> 1.0'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
@@ -73,4 +71,5 @@ group :test do
   gem 'simplecov', require: false
   gem 'codeclimate-test-reporter', require: nil
   gem 'factory_girl_rails'
+  gem 'faker'
 end

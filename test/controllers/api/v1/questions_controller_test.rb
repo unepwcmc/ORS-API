@@ -4,21 +4,10 @@ describe Api::V1::QuestionsController do
   describe "#index" do
     before(:each) do
       @questionnaire = create_questionnaire
-      @root_section = create_section
-      @question = FactoryGirl.create(
-        :question, section: @root_section, answer_type_type: 'NumericAnswer'
-      )
-      @question.question_fields << FactoryGirl.create(
-        :question_field, language: 'en', title: 'English question title'
-      )
+      @root_section = create_section(@questionnaire)
+      @question = create_question(@root_section, answer_type_type: 'NumericAnswer')
       @question.question_fields << FactoryGirl.create(
         :question_field, language: 'pl', title: 'Polski tytuł pytania', is_default_language: false
-      )
-      root_section_qp = FactoryGirl.create(
-        :questionnaire_part, part_id: @root_section.id, part_type: 'Section', questionnaire: @questionnaire
-      )
-      FactoryGirl.create(
-        :questionnaire_part, part_id: @question.id, part_type: 'Question', parent: root_section_qp
       )
     end
 
@@ -69,6 +58,21 @@ describe Api::V1::QuestionsController do
           assert_response 400
         end
       end
+
+      it "returns a bad request error when incorrect per_page value" do
+        as_signed_in_api_user do |api_user|
+          get :index, questionnaire_id: @questionnaire.id, per_page: 'something'
+          assert_response 400
+        end
+      end
+
+      it "should return not found if questionnaire does not exist" do
+        as_signed_in_api_user do |api_user|
+          get :index, questionnaire_id: @questionnaire.id + 1
+          assert_response :not_found
+        end
+      end
+
     end
 
     describe 'JSON' do
