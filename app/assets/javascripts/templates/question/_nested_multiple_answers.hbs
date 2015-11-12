@@ -1,0 +1,29 @@
+<p>
+  Looping path
+  <select class='looping-paths'>
+    {{#each answers}}
+    <option value="{{@index}}">{{looping_path}}</option>
+    {{/each}}
+  </select>
+</p>
+<table class="looping-answers-table">
+  <thead>
+    <tr>
+      <th class='title'>Option</th>
+      <th>Responses</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each answers}}
+      {{#each answers}}
+        <tr class="{{#unless @../index}}active{{/unless}} looping_index{{@../index}}">
+          <td>{{@key}}</td>
+          <td class='answers'>
+            {{length}}
+            {{> question/_answer_tooltip answers=this}}
+          </td>
+        </tr>
+      {{/each}}
+    {{/each}}
+  </tbody>
+</table>

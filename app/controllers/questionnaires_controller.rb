@@ -1,0 +1,9 @@
+class QuestionnairesController < ApplicationController
+
+  def index
+  end
+
+  def show
+  end
+
+end
