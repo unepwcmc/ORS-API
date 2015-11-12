@@ -39,3 +39,12 @@ def as_signed_in_api_user
     yield(@api_user)
   end
 end
+
+require "authlogic/test_case"
+include Authlogic::TestCase
+
+def sign_in(user=nil)
+  activate_authlogic
+  user ||= FactoryGirl.create(:user)
+  UserSession.create(user)
+end
