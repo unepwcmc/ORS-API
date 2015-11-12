@@ -1,4 +1,4 @@
-<table class="responses-table">
+<table class="answers-table">
   <thead>
     <tr>
       <th class='title'>Option</th>
@@ -6,12 +6,12 @@
     </tr>
   </thead>
   <tbody>
-    {{#each responses}}
+    {{#each answers}}
     <tr>
       <td>{{@key}}</td>
-      <td class='responses'>
-        {{this.length}}
-        {{> question/_response_tooltip respondents=this}}
+      <td class='answers'>
+        {{length}}
+        {{> question/_response_tooltip answers=this}}
       </td>
     </tr>
     {{/each}}

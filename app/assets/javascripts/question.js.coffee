@@ -1,90 +1,65 @@
 window.Question = class Question
-  constructor: (@$container_el) ->
+  constructor: (@$container_el, @questionnaire_id) ->
     @init_events()
 
   init_events: ->
     @question_selection()
+    @looping_path_selection()
 
   question_selection: ->
     questions = @$container_el.find('.question-row')
-    questions.on('click', =>
-      question = @get_question()
-      @$container_el.append(HandlebarsTemplates['question/question_modal'](question))
+    self = @
+    questions.on('click', ->
+      question = self.get_question($(@).data('question_id'))
       document.location = '#question_modal'
     )
     @$container_el.on('click', '.close', ->
       $('#question_modal').remove()
     )
 
-  get_question: ->
-    data = @question_data().question
-    if data.type == "Numeric"
-      data
+  get_question: (question_id) ->
+    $.ajax(
+      url: "http://demo-ors-api.ort-staging.linode.unep-wcmc.org/api/v1/questionnaires/#{@questionnaire_id}/questions/#{question_id}"
+      type: 'GET'
+      dataType: 'json'
+      contentType: 'text/plain'
+      beforeSend: (request) ->
+        request.setRequestHeader("X-Authentication-Token", 'xzBA8HXinAO2zprPr')
+      error: (jqXHR, textStatus, errorThrown) ->
+        @$container_el.append "AJAX Error: #{textStatus}"
+      success: (data, textStatus, jqXHR) =>
+        question = data.question
+        if question.type == "Numeric"
+          question
+        else
+          @group_answers(question)
+        @$container_el.append(HandlebarsTemplates['question/question_modal'](question))
+    )
+
+  group_answers: (question) ->
+    if question.answers.length > 0
+      $.extend(question, {grouped_answers: @group_answers_by_option(question.answers)})
     else
-      $.extend(data, {grouped_responses: @group_responses_by_option(data)})
+      $.extend(question, {looping_answers: @group_looping_answers(question)})
 
-  group_responses_by_option: (data) ->
-    options = data.options
-    responses = data.responses
-    grouped_responses = {}
-    for option in options
-      grouped_responses[option] = []
-      for response in responses
-        if option in response.response.answer
-          grouped_responses[option].push(response.response.respondent_name)
-    grouped_responses
-
-
-  question_data: ->
-    {
-      question: {
-        "id": 1,
-        "url": null,
-        "title": "Please confirm the occurrence of the species in the country",
-        "path": [
-          "3. Species Status",
-          "#[Species]"
-        ],
-        "loop_items": [
-          {
-            type: "Species",
-            names: [
-                {
-                    id: 1,
-                    name: 'Canis lupus',
-                    "url": "/api/v1/questionnaires/16/questions/1/1",
-                },
-                {
-                    id: 2,
-                    name: 'Panthera leo',
-                    "url": "/api/v1/questionnaires/16/questions/1/2",
-                }
-            ]
-          }
-        ],
-        "type": "MultiAnswer",
-        "single": true,
-        "is_mandatory": true,
-        "options": ["apple", "orange", "banana"],
-        "responses": [
-          {
-            "response": {
-              "respondent_name": "Ferdinando"
-              "answer": ["apple"]
-            }
-          },
-          {
-            "response": {
-              "respondent_name": "Andrea"
-              "answer": ["orange", "banana"]
-            }
-          },
-          {
-            "response": {
-              "respondent_name": "Roger"
-              "answer": ["banana"]
-            }
-          }
-        ]
+  group_looping_answers: (question) ->
+    grouped_answers = []
+    for looping_context in question.looping_contexts
+      grouped_answers.push {
+        looping_path: looping_context.looping_context.looping_path.join(' > ')
+        answers: @group_answers_by_option(looping_context.looping_context.answers)
       }
-    }
+    grouped_answers
+
+  group_answers_by_option: (answers) ->
+    return [] if answers.length <= 0
+    _.groupBy(answers, (a) ->
+        a.answer.answer_text
+    )
+
+  looping_path_selection: ->
+    $(@$container_el).on('change', '.looping-paths', ->
+      looping_index =  $('.looping-paths option:selected').val()
+      $('.looping-answers-table tr.active').removeClass('active')
+      $(".looping-answers-table tr.looping_index#{looping_index}").addClass('active')
+    )

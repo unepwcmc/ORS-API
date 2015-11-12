@@ -14,7 +14,7 @@ window.Questions = class Questions
         @$container_el.append "AJAX Error: {textStatus}"
       success: (data, textStatus, jqXHR) =>
         @append_questions_details(data.questions)
-        new Question(@$container_el)
+        new Question(@$container_el, @questionnaire_id)
     )
 
   append_questions_details: (questions) ->

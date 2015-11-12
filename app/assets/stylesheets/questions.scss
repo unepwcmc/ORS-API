@@ -4,6 +4,12 @@ table {
   th, td {
     &.title { width: 65%; }
   }
+  &.looping-answers-table {
+    tbody {
+      tr { display: none; }
+      tr.active {display: table-row; }
+    }
+  }
 }
 
 .modal-dialog {
@@ -69,7 +75,7 @@ div.tooltip ul {
   li { padding: 5px 0; }
 }
 
-.responses:hover ul {
+.answers:hover ul {
   display: block;
   position: absolute;
   bottom: 1em;

@@ -6,11 +6,15 @@
       <p> This question is mandatory </p>
     {{/if}}
 
-    <h4> Responses </h4>
-    {{#if grouped_responses}}
-      {{> question/_multiple_responses responses=grouped_responses}}
+    <h4> Answers </h4>
+    {{#if grouped_answers}}
+      {{> question/_multiple_responses answers=grouped_answers}}
     {{else}}
-      {{> question/_numeric_responses responses=responses}}
+      {{#if looping_answers}}
+        {{> question/_nested_multiple_answers answers=looping_answers}}
+      {{else}}
+        {{> question/_numeric_responses answers=answers}}
+      {{/if}}
     {{/if}}
   </div>
 </div>
