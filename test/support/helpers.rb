@@ -48,3 +48,9 @@ def create_question(section, question_attrs = {}, field_attrs = {})
   )
   question
 end
+
+def create_loop_item(loop_item_type)
+  loop_item_name = FactoryGirl.create(:loop_item_name)
+  FactoryGirl.create(:loop_item_name_field, loop_item_name: loop_item_name)
+  FactoryGirl.create(:loop_item, loop_item_type: loop_item_type, loop_item_name: loop_item_name)
+end
