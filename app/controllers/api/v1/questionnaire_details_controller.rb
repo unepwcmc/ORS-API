@@ -1,4 +1,5 @@
 class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
+  before_action :load_questionnaire, only: [:show]
   represents :json, Questionnaire
   represents :xml, Questionnaire
   include QuestionnaireExamples
@@ -18,7 +19,6 @@ class Api::V1::QuestionnaireDetailsController < Api::V1::BaseController
   example xml_example
 
   def show
-    @questionnaire = Questionnaire.where(id: params[:id]).with_language(@language).first
     respond_with @questionnaire
   end
 

@@ -51,6 +51,21 @@ describe Api::V1::QuestionDetailsController do
           assert_response 422
         end
       end
+
+      it "should return not found if questionnaire does not exist" do
+        as_signed_in_api_user do |api_user|
+          get :show, questionnaire_id: @questionnaire.id + 1, id: @question.id
+          assert_response :not_found
+        end
+      end
+
+      it "should return not found if question does not exist" do
+        as_signed_in_api_user do |api_user|
+          get :show, questionnaire_id: @questionnaire.id, id: @question.id + 1
+          assert_response :not_found
+        end
+      end
+
     end
 
     describe 'JSON' do
