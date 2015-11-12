@@ -25,14 +25,15 @@ module QuestionExamples
 
   [id] unique identifier of a question
   [section_id] identifier of section
-  [looping_section_id] identifier of closest looping section. If present it means question is looping and looping_contexts need to be processed to retrieve answers.
+  [looping_section_id] identifier of closest looping section. When present, question is looping and looping_contexts need to be processed to retrieve answers.
+  [url] API URL path of question details
   [title] title of the question (translated where available)
   [language] current language (given as ISO code)
   [path] array of sections in which this question is nested
   [type] one of MultiAnswer, RangeAnswer or NumericAnswer
   [questionnaire_date] date when questionnaire was created
   [is_mandatory] boolean flag denoting whether this question is mandatory to fill in
-  [options] array of available options (applicable to `MultiAnswer` and `RangeAnswer`)
+  [options] array of available options (applicable to MultiAnswer and RangeAnswer)
   #{ yield if block_given? }
       EOS
     end
