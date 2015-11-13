@@ -4,6 +4,14 @@ table {
   th, td {
     &.title { width: 65%; }
   }
+  &.questions-table {
+    tbody {
+      tr:hover {
+        background-color: $grey-10;
+        cursor: pointer;
+      }
+    }
+  }
   &.looping-answers-table {
     tbody {
       tr { display: none; }

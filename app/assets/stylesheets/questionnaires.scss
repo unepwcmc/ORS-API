@@ -11,26 +11,27 @@
   list-style: none;
   li {
     display: inline-block;
-    border: 1px grey solid;
+    border: 1px $grey-18 solid;
     text-align: center;
     width: 50%;
     box-sizing: border-box;
     height: 30px;
     line-height: 26px;
-    background-color: $grey-10;
+    background-color: $grey-18;
   }
   li:first-child {
     margin-right: -5px;
   }
   li.active {
-    background-color: $white;
+    background-color: $grey-3;
     border-bottom: none;
   }
 }
 
 .questionnaire-tab-container {
-  width: 1100px;
-  margin: 25px auto;
+  width: 1139px;
+  padding: 25px;
+  background-color: $grey-3;
   .questionnaire-details {
     display: block;
     ul {
