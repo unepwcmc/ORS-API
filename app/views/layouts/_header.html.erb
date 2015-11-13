@@ -15,17 +15,6 @@
         <% else %>
           <li><%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %></li>
           <li><%= link_to "Login", new_user_session_path(:lang => (params[:lang]||"en")) %></li>
-          <li>
-            <%= select :display, :language, [["English","en"], ["Français","fr"]], {:selected => (params[:lang] || "en")} %>
-          </li>
-          <script type="text/javascript">
-            $("#display_language").change(function(){
-              var selected_lang = $(this).val();
-              if(selected_lang != ""){
-                window.location = "?lang="+selected_lang;
-              }
-            });
-          </script>
         <% end %>
       </ul>
     </div>
