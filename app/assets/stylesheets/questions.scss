@@ -4,6 +4,14 @@ table {
   th, td {
     &.title { width: 65%; }
   }
+  &.questions-table {
+    tbody {
+      tr:hover {
+        background-color: $grey-10;
+        cursor: pointer;
+      }
+    }
+  }
   &.looping-answers-table {
     tbody {
       tr { display: none; }
@@ -46,7 +54,7 @@ table {
 }
 
 .close {
-  background: #606061;
+  background: $grey-18;
   color: #FFFFFF;
   line-height: 25px;
   position: absolute;
@@ -64,7 +72,6 @@ table {
   box-shadow: 1px 1px 3px #000;
 }
 
-.close:hover { background: #00d9ff; }
 
 div.tooltip {
   position: relative;
