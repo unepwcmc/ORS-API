@@ -9,6 +9,7 @@ FactoryGirl.define do
     title 'English title'
     language 'en'
     is_default_language true
+    questionnaire
   end
 
   factory :questionnaire_part, class: Test::QuestionnairePart

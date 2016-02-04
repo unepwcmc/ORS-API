@@ -8,6 +8,7 @@ FactoryGirl.define do
     title 'English section title'
     language 'en'
     is_default_language true
+    section
   end
 
 end
