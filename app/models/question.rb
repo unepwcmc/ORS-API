@@ -5,6 +5,8 @@ class Question < ActiveRecord::Base
   include WithLanguage
 
   belongs_to :section
-  has_many :answers, -> { where(looping_identifier: nil) }
+  has_many :answers, -> (object) {
+    where(looping_identifier: nil, language: object.language)
+  }
   has_many :looping_contexts, -> (object) { where("#{LoopingContext.table_name}.language" => object.language).order(:li_lft) }
 end
