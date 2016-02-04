@@ -2,6 +2,7 @@ FactoryGirl.define do
 
   factory :questionnaire, class: Test::Questionnaire do
     status 2
+    user
   end
 
   factory :questionnaire_field, class: Test::QuestionnaireField do
