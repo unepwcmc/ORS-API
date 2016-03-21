@@ -2,10 +2,12 @@ FactoryGirl.define do
 
   factory :loop_item_type, class: Test::LoopItemType do
     name Faker::Lorem.word
+    loop_source
   end
 
   factory :loop_item_name, class: Test::LoopItemName do
     loop_item_type
+    loop_source
   end
 
   factory :loop_item_name_field, class: Test::LoopItemNameField do
