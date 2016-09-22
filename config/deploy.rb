@@ -49,3 +49,5 @@ set :pty, true
 set :keep_releases, 5
 
 set :passenger_restart_with_touch, false
+
+require 'appsignal/capistrano'
