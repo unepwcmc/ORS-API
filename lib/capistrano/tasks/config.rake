@@ -22,8 +22,7 @@ end
 namespace :config do
   task :setup do
     ask(:secret_key_base, 'secret_key_base')
-    ask(:exception_notification_email, 'exception_notification_email')
-    ask(:exception_notification_slack_webhook, 'exception_notification_slack_webhook')
+    ask(:appsignal_push_api_key, 'appsignal_push_api_key')
     ask(:mailer_address, 'mailer_address')
     ask(:mailer_port, 'mailer_port')
     ask(:mailer_domain, 'mailer_domain')
@@ -33,8 +32,7 @@ namespace :config do
     ask(:mailer_host, 'mailer_host')
 env_config = <<-EOF
 SECRET_KEY_BASE=#{fetch(:secret_key_base)}
-EXCEPTION_NOTIFICATION_EMAIL=#{fetch(:exception_notification_email)}
-EXCEPTION_NOTIFICATION_SLACK_WEBHOOK=#{fetch(:exception_notification_slack_webhook)}
+APPSIGNAL_PUSH_API_KEY=#{fetch(:appsignal_push_api_key)}
 MAILER_ADDRESS_KEY=#{fetch(:mailer_address)}
 MAILER_PORT_KEY=#{fetch(:mailer_port)}
 MAILER_DOMAIN_KEY=#{fetch(:mailer_domain)}

@@ -46,9 +46,7 @@ class Api::V1::BaseController < ApplicationController
   end
 
   def return_exception_error(exception)
-    ExceptionNotifier.notify_exception(exception,
-      env: request.env, data: { message: "Something went wrong" }
-    )
+    Appsignal.add_exception(exception)
 
     Rails.logger.error exception.message
     Rails.logger.error exception.backtrace.join("\n")
