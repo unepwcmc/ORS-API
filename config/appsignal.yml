@@ -9,8 +9,8 @@ default: &defaults
     - ActiveRecord::RecordNotFound
 
   # Actions that should not be monitored by AppSignal
-  ignore_actions:
-    - Api::V1::BaseController#test_exception_notifier
+  # ignore_actions:
+  #   - Api::V1::BaseController#test_exception_notifier
 
   # See http://docs.appsignal.com/gem-settings/configuration.html for
   # all configuration options.
