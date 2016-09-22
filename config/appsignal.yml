@@ -1,0 +1,30 @@
+default: &defaults
+  # Your push api key, it is possible to set this dynamically using ERB:
+  push_api_key: "<%= ENV['APPSIGNAL_PUSH_API_KEY'] %>"
+
+  # Your app's name
+  name: "ORS-API"
+
+  ignore_exceptions:
+    - ActiveRecord::RecordNotFound
+
+  # Actions that should not be monitored by AppSignal
+  # ignore_actions:
+  #   - Api::V1::BaseController#test_exception_notifier
+
+  # See http://docs.appsignal.com/gem-settings/configuration.html for
+  # all configuration options.
+
+# Configuration per environment, leave out an environment or set active
+# to false to not push metrics for that environment.
+development:
+  <<: *defaults
+  active: false
+
+production:
+  <<: *defaults
+  active: true
+
+staging:
+  <<: *defaults
+  active: true

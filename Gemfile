@@ -41,8 +41,7 @@ gem 'font-awesome-rails'
 gem 'handlebars_assets', '0.20.1'
 
 gem 'dotenv-rails'
-gem 'exception_notification'
-gem 'slack-notifier', '~> 1.0'
+gem 'appsignal'
 
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
