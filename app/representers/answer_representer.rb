@@ -11,4 +11,5 @@ class AnswerRepresenter < Roar::Decorator
   property :respondent
   property :user_id
   property :answer_text
+  property :details_text
 end
