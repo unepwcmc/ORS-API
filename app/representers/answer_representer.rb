@@ -8,8 +8,7 @@ class AnswerRepresenter < Roar::Decorator
 
   self.representation_wrap = :answer
 
-  property :respondent
-  property :user_id
+  property :respondent, decorator: RespondentRepresenter
   property :answer_text
   property :details_text
 end

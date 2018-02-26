@@ -12,4 +12,8 @@ class RespondentRepresenter < Roar::Decorator
   property :user_id
   property :full_name
   property :status
+  property :language
+  property :country
+  property :region
+  property :roles
 end
