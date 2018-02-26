@@ -6,7 +6,7 @@ module QuestionExamples
   included do
     resource_description do
       formats ['JSON', 'XML']
-      api_base_url 'api/v1/questions'
+      api_base_url 'api/v1/questionnaires'
       resource_id 'questions'
       name 'Question'
     end
