@@ -43,6 +43,8 @@ gem 'handlebars_assets', '0.20.1'
 gem 'dotenv-rails'
 gem 'appsignal'
 
+gem 'smoke_test', github: 'unepwcmc/SmokeTest'
+
 group :development, :test do
   # Call 'byebug' anywhere in the code to stop execution and get a debugger console
   gem 'byebug'
