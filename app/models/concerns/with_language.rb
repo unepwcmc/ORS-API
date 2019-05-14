@@ -7,7 +7,7 @@ module WithLanguage
     scope :with_language, -> (language) {
       if language
         where(
-          "languages @> ARRAY[:language] AND language = :language
+          "languages @> ARRAY[:language] AND #{self.table_name}.language = :language
           OR NOT languages @> ARRAY[:language] AND is_default_language",
           language: language
         )
