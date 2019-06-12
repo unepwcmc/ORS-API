@@ -28,7 +28,7 @@ module QuestionnaireExamples
   [title] title of the questionnaire (translated where available)
   [language] current language (given as ISO code)
   [languages] all available languages (given as array of ISO codes)
-  [status] one of 'Active' or 'Closed'
+  [status] one of 'Active', 'Inactive' or 'Closed'
   [activated_on] date when questionnaire was activated
   [questionnaire_date] date set by administrator
   [respondents] array of respondents and the completion status
