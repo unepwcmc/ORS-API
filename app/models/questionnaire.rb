@@ -8,7 +8,6 @@ class Questionnaire < ActiveRecord::Base
   has_many :questions
 
   default_scope {
-    includes(:respondents).references(:respondents).
-      where(status: ['Active', 'Closed'])
+    includes(:respondents).references(:respondents)
   }
 end

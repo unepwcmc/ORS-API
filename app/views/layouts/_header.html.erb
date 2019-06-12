@@ -13,7 +13,9 @@
           </li>
           <li><%= link_to "Logout", logout_path(:lang => current_user.language) %></li>
         <% else %>
-          <li><%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %></li>
+          <% unless is_ramsar_instance? %>
+            <li><%= link_to "Sign up", new_user_path(:lang => (params[:lang]||"en")) %></li>
+          <% end %>
           <li><%= link_to "Login", new_user_session_path(:lang => (params[:lang]||"en")) %></li>
         <% end %>
       </ul>

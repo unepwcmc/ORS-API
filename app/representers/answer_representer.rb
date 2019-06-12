@@ -11,4 +11,5 @@ class AnswerRepresenter < Roar::Decorator
   property :user_id
   property :answer_text
   property :details_text
+  property :matrix_answer
 end
