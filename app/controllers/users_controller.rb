@@ -1,5 +1,8 @@
 class UsersController < ApplicationController
+  include ApplicationHelper
+
   before_action :authenticate, except: [:new, :create]
+  before_action :revoke_access_for_ramsar, only: [:new, :create]
 
   def new
     @user = User.new
@@ -31,5 +34,9 @@ class UsersController < ApplicationController
   def users_params
     params.require(:user).permit(:email, :password, :password_confirmation,
                                  :first_name, :last_name)
+  end
+
+  def revoke_access_for_ramsar
+    redirect_to root_path if is_ramsar_instance?
   end
 end
