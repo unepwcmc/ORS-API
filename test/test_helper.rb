@@ -30,10 +30,7 @@ end
 
 require "minitest/mock"
 def as_signed_in_api_user
-  @api_user = {
-    id: 1,
-    single_access_token: 'ABC'
-  }
+  @api_user = FactoryGirl.create(:user)
   User.stub :find_by_single_access_token, @api_user do
     @request.headers["X-Authentication-Token"] = @api_user[:single_access_token]
     yield(@api_user)
