@@ -161,7 +161,6 @@ CREATE TABLE alerts (
 --
 
 CREATE SEQUENCE alerts_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -196,7 +195,6 @@ CREATE TABLE answer_links (
 --
 
 CREATE SEQUENCE answer_links_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -231,7 +229,6 @@ CREATE TABLE answer_part_matrix_options (
 --
 
 CREATE SEQUENCE answer_part_matrix_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -271,7 +268,6 @@ CREATE TABLE answer_parts (
 --
 
 CREATE SEQUENCE answer_parts_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -307,7 +303,6 @@ CREATE TABLE answer_type_fields (
 --
 
 CREATE SEQUENCE answer_type_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -348,7 +343,6 @@ CREATE TABLE answers (
 --
 
 CREATE SEQUENCE answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1235,7 +1229,6 @@ CREATE TABLE application_profiles (
 --
 
 CREATE SEQUENCE application_profiles_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1268,7 +1261,6 @@ CREATE TABLE assignments (
 --
 
 CREATE SEQUENCE assignments_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1306,7 +1298,6 @@ CREATE TABLE authorized_submitters (
 --
 
 CREATE SEQUENCE authorized_submitters_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1341,7 +1332,6 @@ CREATE TABLE csv_files (
 --
 
 CREATE SEQUENCE csv_files_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1376,7 +1366,6 @@ CREATE TABLE deadlines (
 --
 
 CREATE SEQUENCE deadlines_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1410,7 +1399,6 @@ CREATE TABLE delegate_text_answers (
 --
 
 CREATE SEQUENCE delegate_text_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1443,7 +1431,6 @@ CREATE TABLE delegated_loop_item_names (
 --
 
 CREATE SEQUENCE delegated_loop_item_names_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1477,7 +1464,6 @@ CREATE TABLE delegation_sections (
 --
 
 CREATE SEQUENCE delegation_sections_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1514,7 +1500,6 @@ CREATE TABLE delegations (
 --
 
 CREATE SEQUENCE delegations_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1552,7 +1537,6 @@ CREATE TABLE documents (
 --
 
 CREATE SEQUENCE documents_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1587,7 +1571,6 @@ CREATE TABLE extras (
 --
 
 CREATE SEQUENCE extras_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1621,7 +1604,6 @@ CREATE TABLE filtering_fields (
 --
 
 CREATE SEQUENCE filtering_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1656,7 +1638,6 @@ CREATE TABLE item_extra_fields (
 --
 
 CREATE SEQUENCE item_extra_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1690,7 +1671,6 @@ CREATE TABLE item_extras (
 --
 
 CREATE SEQUENCE item_extras_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1710,7 +1690,6 @@ ALTER SEQUENCE item_extras_id_seq OWNED BY item_extras.id;
 --
 
 CREATE SEQUENCE loop_item_name_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1730,7 +1709,6 @@ ALTER SEQUENCE loop_item_name_fields_id_seq OWNED BY loop_item_name_fields.id;
 --
 
 CREATE SEQUENCE loop_item_names_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1768,7 +1746,6 @@ CREATE TABLE loop_item_types (
 --
 
 CREATE SEQUENCE loop_item_types_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1788,7 +1765,6 @@ ALTER SEQUENCE loop_item_types_id_seq OWNED BY loop_item_types.id;
 --
 
 CREATE SEQUENCE loop_items_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1822,7 +1798,6 @@ CREATE TABLE loop_sources (
 --
 
 CREATE SEQUENCE loop_sources_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1842,7 +1817,6 @@ ALTER SEQUENCE loop_sources_id_seq OWNED BY loop_sources.id;
 --
 
 CREATE SEQUENCE matrix_answer_drop_option_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1862,7 +1836,6 @@ ALTER SEQUENCE matrix_answer_drop_option_fields_id_seq OWNED BY matrix_answer_dr
 --
 
 CREATE SEQUENCE matrix_answer_drop_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1882,7 +1855,6 @@ ALTER SEQUENCE matrix_answer_drop_options_id_seq OWNED BY matrix_answer_drop_opt
 --
 
 CREATE SEQUENCE matrix_answer_option_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1902,7 +1874,6 @@ ALTER SEQUENCE matrix_answer_option_fields_id_seq OWNED BY matrix_answer_option_
 --
 
 CREATE SEQUENCE matrix_answer_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1922,7 +1893,6 @@ ALTER SEQUENCE matrix_answer_options_id_seq OWNED BY matrix_answer_options.id;
 --
 
 CREATE SEQUENCE matrix_answer_queries_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1942,7 +1912,6 @@ ALTER SEQUENCE matrix_answer_queries_id_seq OWNED BY matrix_answer_queries.id;
 --
 
 CREATE SEQUENCE matrix_answer_query_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1976,7 +1945,6 @@ CREATE TABLE matrix_answers (
 --
 
 CREATE SEQUENCE matrix_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -1996,7 +1964,6 @@ ALTER SEQUENCE matrix_answers_id_seq OWNED BY matrix_answers.id;
 --
 
 CREATE SEQUENCE multi_answer_option_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2016,7 +1983,6 @@ ALTER SEQUENCE multi_answer_option_fields_id_seq OWNED BY multi_answer_option_fi
 --
 
 CREATE SEQUENCE multi_answer_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2051,7 +2017,6 @@ CREATE TABLE multi_answers (
 --
 
 CREATE SEQUENCE multi_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2085,7 +2050,6 @@ CREATE TABLE numeric_answers (
 --
 
 CREATE SEQUENCE numeric_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2120,7 +2084,6 @@ CREATE TABLE other_fields (
 --
 
 CREATE SEQUENCE other_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2156,7 +2119,6 @@ CREATE TABLE pdf_files (
 --
 
 CREATE SEQUENCE pdf_files_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2194,7 +2156,6 @@ CREATE TABLE persistent_errors (
 --
 
 CREATE SEQUENCE persistent_errors_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2368,7 +2329,6 @@ CREATE TABLE question_extras (
 --
 
 CREATE SEQUENCE question_extras_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2388,7 +2348,6 @@ ALTER SEQUENCE question_extras_id_seq OWNED BY question_extras.id;
 --
 
 CREATE SEQUENCE question_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2421,7 +2380,6 @@ CREATE TABLE question_loop_types (
 --
 
 CREATE SEQUENCE question_loop_types_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2441,7 +2399,6 @@ ALTER SEQUENCE question_loop_types_id_seq OWNED BY question_loop_types.id;
 --
 
 CREATE SEQUENCE questionnaire_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2461,7 +2418,6 @@ ALTER SEQUENCE questionnaire_fields_id_seq OWNED BY questionnaire_fields.id;
 --
 
 CREATE SEQUENCE questionnaire_parts_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2481,7 +2437,6 @@ ALTER SEQUENCE questionnaire_parts_id_seq OWNED BY questionnaire_parts.id;
 --
 
 CREATE SEQUENCE questionnaires_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2501,7 +2456,6 @@ ALTER SEQUENCE questionnaires_id_seq OWNED BY questionnaires.id;
 --
 
 CREATE SEQUENCE questions_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2521,7 +2475,6 @@ ALTER SEQUENCE questions_id_seq OWNED BY questions.id;
 --
 
 CREATE SEQUENCE range_answer_option_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2541,7 +2494,6 @@ ALTER SEQUENCE range_answer_option_fields_id_seq OWNED BY range_answer_option_fi
 --
 
 CREATE SEQUENCE range_answer_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2573,7 +2525,6 @@ CREATE TABLE range_answers (
 --
 
 CREATE SEQUENCE range_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2608,7 +2559,6 @@ CREATE TABLE rank_answer_option_fields (
 --
 
 CREATE SEQUENCE rank_answer_option_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2641,7 +2591,6 @@ CREATE TABLE rank_answer_options (
 --
 
 CREATE SEQUENCE rank_answer_options_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2674,7 +2623,6 @@ CREATE TABLE rank_answers (
 --
 
 CREATE SEQUENCE rank_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2708,7 +2656,6 @@ CREATE TABLE reminders (
 --
 
 CREATE SEQUENCE reminders_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2741,7 +2688,6 @@ CREATE TABLE roles (
 --
 
 CREATE SEQUENCE roles_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2783,7 +2729,6 @@ CREATE TABLE section_extras (
 --
 
 CREATE SEQUENCE section_extras_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2803,7 +2748,6 @@ ALTER SEQUENCE section_extras_id_seq OWNED BY section_extras.id;
 --
 
 CREATE SEQUENCE section_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2823,7 +2767,6 @@ ALTER SEQUENCE section_fields_id_seq OWNED BY section_fields.id;
 --
 
 CREATE SEQUENCE sections_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2860,7 +2803,6 @@ CREATE TABLE source_files (
 --
 
 CREATE SEQUENCE source_files_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2896,7 +2838,6 @@ CREATE TABLE taggings (
 --
 
 CREATE SEQUENCE taggings_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2926,7 +2867,6 @@ CREATE TABLE tags (
 --
 
 CREATE SEQUENCE tags_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2961,7 +2901,6 @@ CREATE TABLE text_answer_fields (
 --
 
 CREATE SEQUENCE text_answer_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -2993,7 +2932,6 @@ CREATE TABLE text_answers (
 --
 
 CREATE SEQUENCE text_answers_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3027,7 +2965,6 @@ CREATE TABLE user_delegates (
 --
 
 CREATE SEQUENCE user_delegates_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3061,7 +2998,6 @@ CREATE TABLE user_filtering_fields (
 --
 
 CREATE SEQUENCE user_filtering_fields_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3098,7 +3034,6 @@ CREATE TABLE user_section_submission_states (
 --
 
 CREATE SEQUENCE user_section_submission_states_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -3118,7 +3053,6 @@ ALTER SEQUENCE user_section_submission_states_id_seq OWNED BY user_section_submi
 --
 
 CREATE SEQUENCE users_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
