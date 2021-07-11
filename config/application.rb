@@ -29,5 +29,9 @@ module ORSApi
     end
 
     config.autoload_paths += %W(#{config.root}/test/support/models)
+
+    config.after_initialize do
+      SmokeTest.new.test_endpoints if Rails.env == 'production' || Rails.env == 'staging'
+    end
   end
 end
